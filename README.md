@@ -1,138 +1,138 @@
-# nekopoi-renamer
+# 🎬 nekopoi-renamer
 
-Script PowerShell untuk merapikan, menstandarkan, dan mengelola nama file video NekoPoi secara otomatis.
-Cocok untuk koleksi besar biar rapi, konsisten, dan bebas duplikat.
-
----
-
-## Fitur Utama
-
-- Rename otomatis file video (.mp4, .mkv, .mov, .webm)
-- Menghapus tag NekoPoi dan domain (nekopoi.care, .fun, .tv, dll)
-- Membersihkan simbol berantakan seperti [], (), dan _
-- Deteksi dan standarisasi:
-  - Kode JAV (FC2, SONE, EBWH, dll)
-  - Resolusi (480P, 720P, 1080P)
-  - Dimensi (2D, 3D, LIVE2D)
-- Deteksi author / studio otomatis dari author.txt
-- Keyword terlindungi agar tetap kapital (TK, UKS, ZZZ, dll)
-- Pencegahan judul duplikat:
-  - Dalam satu sesi
-  - Global via judul.txt
-- File duplikat dipindahkan ke folder _DUPLICATE
-- Judul hasil rename otomatis disimpan ke judul.txt
-- judul.txt otomatis di-sort alfabet
+🚀 Script PowerShell untuk **merapikan, menstandarkan, dan mengelola** nama file video NekoPoi secara otomatis.  
+Cocok buat koleksi gede biar **rapi, konsisten, dan bebas duplikat**. Hidup jadi damai ✨
 
 ---
 
-## Struktur File
+## ✨ Fitur Utama
 
-Pastikan file berikut berada dalam folder yang sama:
+✅ Rename otomatis file video (.mp4, .mkv, .mov, .webm)  
+🧹 Menghapus tag NekoPoi & domain (nekopoi.care, .fun, .tv, dll)  
+🪚 Membersihkan simbol berantakan: `[] () _`  
+🧠 Deteksi & standarisasi:
+- 🎟️ Kode JAV (FC2, SONE, EBWH, dll)
+- 📺 Resolusi (480P, 720P, 1080P)
+- 🧩 Dimensi (2D, 3D, LIVE2D)
 
-nekopoi-renamer.ps1  
-author.txt  
-keyword.txt  
-judul.txt  
+🏷️ Deteksi author / studio otomatis dari `author.txt`  
+🔒 Keyword penting tetap kapital (TK, UKS, ZZZ, dll)  
+🚫 Anti duplikat:
+- Dalam satu sesi
+- Global via `judul.txt`
+
+📦 File duplikat otomatis dipindah ke folder `_DUPLICATE`  
+📝 Judul hasil rename otomatis disimpan ke `judul.txt`  
+🔤 `judul.txt` otomatis di-sort alphabetical
 
 ---
 
-## author.txt
+## 📁 Struktur File
+
+Pastikan file berikut ada di folder yang sama dengan file video NekoPoi anda:
+
+📄 `nekopoi-renamer.ps1`  
+📄 `author.txt`  
+📄 `keyword.txt`  
+📄 `judul.txt`  
+
+---
+
+## 🏷️ author.txt
 
 Daftar author / studio.  
-Satu baris = satu author.
+📌 **Satu baris = satu author**
 
 Contoh:
+- Horny Herring Studios
+- CBX-CJW
+- Peh-koi
+- Misumi
+- MAKODA
 
-Horny Herring Studios  
-CBX-CJW  
-Peh-koi  
-Misumi  
-MAKODA  
 
 ---
 
-## keyword.txt
+## 🔑 keyword.txt
 
-Daftar keyword yang harus tetap kapital (tidak di-TitleCase).
+Daftar keyword yang **harus tetap kapital** (tidak kena TitleCase).
 
 Contoh:
+- TK
+- UKS
+- ZZZ
+- HSR
+- UNCENSORED
+- FGO
 
-TK  
-UKS  
-ZZZ  
-HSR  
-UNCENSORED  
-FGO  
 
 ---
 
-## judul.txt
+## 📚 judul.txt
 
-Database judul yang sudah pernah diproses.
-Digunakan untuk mencegah rename judul duplikat.
+Database judul yang sudah pernah diproses.  
+Dipakai buat **mencegah rename judul duplikat** 🛑
 
 Contoh isi:
+- EBWH-063 - U 480P
+- SONE-788 Nekpoi - U 480P
 
-EBWH-063 - U 480P  
-SONE-788 Nekpoi - U 480P  
-
----
-
-## Contoh Rename
-
-Sebelum:
-
-[NekoPoi]_EBWH-063-U_[480p].mp4
-
-Sesudah:
-
-EBWH-063 - U 480P.mp4
 
 ---
 
-Sebelum:
+## 🔄 Contoh Rename
 
-NekoPoi_720p_Horny_Herring_Studios_Lyriel_Elf_Maid_from_A_House.mp4
+🎯 **Sebelum:**
+`[NekoPoi]EBWH-063-U[480p].mp4`
 
-Sesudah:
 
-Horny Herring Studios - Lyriel Elf Maid From A House 720P.mp4
+✨ **Sesudah:**
+`EBWH-063 - U 480P.mp4`
+
 
 ---
 
-## Perilaku Duplikat
+🎯 **Sebelum:**
+`NekoPoi_720p_Horny_Herring_Studios_Lyriel_Elf_Maid_from_A_House.mp4`
+
+
+✨ **Sesudah:**
+`Horny Herring Studios - Lyriel Elf Maid From A House 720P.mp4`
+
+
+---
+
+## 🚨 Perilaku Duplikat
 
 Jika judul:
-- sudah ada di judul.txt, atau
-- muncul dua kali dalam satu proses
+- 🧠 sudah ada di `judul.txt`, atau
+- 👯 muncul dua kali dalam satu proses
 
-Maka file:
-- tidak akan di-rename
-- dipindahkan ke folder _DUPLICATE
-- diberi peringatan di console
-
----
-
-## Cara Pakai
-
-1. Buka PowerShell di folder script
-2. Jalankan:
-
-cleanner.bat
-
-Jika script tidak bisa dijalankan, aktifkan dulu:
-
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+Maka file akan:
+- ❌ Tidak di-rename
+- 📦 Dipindahkan ke folder `_DUPLICATE`
+- ⚠️ Diberi peringatan di console
 
 ---
 
-## Catatan
+## ▶️ Cara Pakai
 
-- Script hanya mengubah nama file, bukan isi video
-- Aman untuk ribuan file
-- Fokus ke konsistensi arsip jangka panjang
+1️⃣ Jalankan `cleaner.bat` dan skrip akan otomatis rename semua file yang berada di folder yang sama
+
 
 ---
 
-Gunakan dengan bijak.
-Koleksi rapi, hidup lebih tenang.
+## 📌 Catatan
+
+ℹ️ Script **hanya mengubah nama file**, bukan isi video  
+💪 Aman untuk ribuan file  
+🧘 Fokus ke kerapian arsip jangka panjang
+
+---
+
+😌 Koleksi rapi  
+😎 Nama konsisten  
+🧠 Hidup lebih tenang  
+
+**Happy renaming! 🔥**
+
