@@ -42,7 +42,7 @@ function Add-TitleRegistry {
         [string]$File = "judul.txt"
     )
 
-    Add-Content -Path $File -Value $Title
+    Add-Content -Path $File -Value "`r`n$Title"
 }
 
 # Automatic sort title registry
@@ -81,7 +81,7 @@ Get-ChildItem -File | Where-Object {
         # 1 HAPUS DOMAIN / NEKOPOI
         # =============================
         $name = $name -replace '(?i)nekopoi', ''
-        $name = $name -replace '(?i)\.(care|fun|tv|id|io|xyz|site|club|live|net|org|cc|me|pw|biz|info|asia|us|uk|pro)\b', ''
+        $name = $name -replace '(?i)\.(care|fun|tv|id|io|xyz|site|club|live|net|org|cc|me|pw|biz|info|asia|us|uk|pro|lol|trade|host|band|top)\b', ''
 
         # =============================
         # 2 RESOLUTION (ambil terakhir)
@@ -118,9 +118,9 @@ Get-ChildItem -File | Where-Object {
             foreach ($a in $authorList) {
                 $esc = [regex]::Escape($a)
                 $escFlex = $esc -replace '\ ', '[\s_]+'
-                if ($name -match "(?i)^\s*$esc([\s_-]|$)") {
+                if ($name -match "(?i)^\s*($escFlex)([\s_-]+)?") {
                     $studio = $a
-                    $name = $name -replace "(?i)^\s*$esc([\s_-]|$)", ''
+                    $name = $name -replace "(?i)^\s*($escFlex)([\s_-]+)?", ''
                     $hasAuthor = $true
                     break
                 }
@@ -169,21 +169,9 @@ Get-ChildItem -File | Where-Object {
         # 9 FALLBACK
         # =============================
         if ([string]::IsNullOrWhiteSpace($name)) {
-            Write-Warning "Judul kosong → fallback baseName: $original" -ForegroundColor Yellow
+            Write-Host "Judul kosong → fallback baseName: $original" -ForegroundColor Yellow
             $name = $textInfo.ToTitleCase($_.BaseName.ToLower())
             $titleNullCount++
-        }
-
-        # =============================
-        # 8.2 RESTORE PROTECTED KEYWORDS
-        # =============================
-        foreach ($k in $keywordList) {
-            $esc = [regex]::Escape($k)
-            $name = [regex]::Replace(
-                $name,
-                "(?i)\b$esc\b",
-                $k
-            )
         }
 
         # =============================
@@ -202,6 +190,18 @@ Get-ChildItem -File | Where-Object {
         $final = $final -replace '\s*(-\s*){2,}', ' - '
         $final = $final -replace '\s{2,}', ' '
         $final = $final.Trim(' -')
+
+        # =============================
+        # FINAL KEYWORD ENFORCER (ANTI TITLECASE)
+        # =============================
+        foreach ($k in $keywordList) {
+            $esc = [regex]::Escape($k)
+            $final = [regex]::Replace(
+                $final,
+                "(?i)\b$esc\b",
+                $k
+            )
+        }
 
         $newName = ($final + $ext)
 
@@ -240,7 +240,7 @@ Get-ChildItem -File | Where-Object {
         # =============================
         # 12 RENAME + SAVE TO JUDUL.TXT
         # =============================
-        if ($original -ieq $newName) {
+        if ($original -ceq $newName) {
             $skipCleanCount++
             return
         }
