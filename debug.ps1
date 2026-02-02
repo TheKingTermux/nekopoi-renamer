@@ -5,17 +5,21 @@ $skipCleanCount = 0
 $duplicateMoveCount = 0
 $titleNullCount = 0
 
+# Folder pembuangan duplikat
 $dupFolder = "_DUPLICATE"
 if (-not (Test-Path $dupFolder)) { New-Item -ItemType Directory -Name $dupFolder | Out-Null }
 
+# Load author whitelist
 $authorFile = "author.txt"
 $authorList = @()
 if (Test-Path $authorFile) { $authorList = Get-Content $authorFile | Where-Object { $_.Trim() -ne "" } }
 
+# Load keyword whitelist
 $keywordFile = "keyword.txt"
 $keywordList = @()
 if (Test-Path $keywordFile) { $keywordList = Get-Content $keywordFile | Where-Object { $_.Trim() -ne "" } }
 
+# Load title registry
 $titleFile = "judul.txt"
 $titleRegistry = @{}
 if (Test-Path $titleFile) {
@@ -25,11 +29,13 @@ if (Test-Path $titleFile) {
     }
 }
 
+# Save title registry
 function Add-TitleRegistry {
     param ([string]$Title, [string]$File = "judul.txt")
     Add-Content -Path $File -Value "`r`n$Title" -Encoding UTF8
 }
 
+# Automatic sort title registry
 function Sort-TitleRegistry {
     param ([string]$File = "judul.txt")
     if (-not (Test-Path $File)) { return }
@@ -37,17 +43,20 @@ function Sort-TitleRegistry {
     Set-Content -Path $File -Value $sorted -Encoding UTF8
 }
 
+# Scan semua file
 Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() } | ForEach-Object {
     $original = $_.Name
     $name = $_.BaseName
     $ext = $_.Extension
 
+    # reset metadata
     $reso = ""
     $dim = ""
     $studio = ""
     $code = ""
     $hasAuthor = $false
 
+    # Main Script
     try {
         # 1. Ekstrak RESOLUTION dulu
         if ($name -match '(?i)(\d{3,4})[pP](?![^0-9]*\d{3,4}[pP])') {
