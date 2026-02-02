@@ -1,31 +1,21 @@
-﻿$videoExt = ".mp4",".mkv",".mov",".webm"
+﻿$videoExt = @(".mp4",".mkv",".mov",".webm")
 $seenTitles = @{}
 $renamedCount = 0
 $skipCleanCount = 0
 $duplicateMoveCount = 0
 $titleNullCount = 0
 
-# Folder pembuangan duplikat
 $dupFolder = "_DUPLICATE"
-if (-not (Test-Path $dupFolder)) {
-    New-Item -ItemType Directory -Name $dupFolder | Out-Null
-}
+if (-not (Test-Path $dupFolder)) { New-Item -ItemType Directory -Name $dupFolder | Out-Null }
 
-# Load author whitelist
 $authorFile = "author.txt"
 $authorList = @()
-if (Test-Path $authorFile) {
-    $authorList = Get-Content $authorFile | Where-Object { $_.Trim() -ne "" }
-}
+if (Test-Path $authorFile) { $authorList = Get-Content $authorFile | Where-Object { $_.Trim() -ne "" } }
 
-# Load keyword whitelist
 $keywordFile = "keyword.txt"
 $keywordList = @()
-if (Test-Path $keywordFile) {
-    $keywordList = Get-Content $keywordFile | Where-Object { $_.Trim() -ne "" }
-}
+if (Test-Path $keywordFile) { $keywordList = Get-Content $keywordFile | Where-Object { $_.Trim() -ne "" } }
 
-# Load title registry
 $titleFile = "judul.txt"
 $titleRegistry = @{}
 if (Test-Path $titleFile) {
@@ -35,41 +25,23 @@ if (Test-Path $titleFile) {
     }
 }
 
-# Save title registry
 function Add-TitleRegistry {
-    param (
-        [string]$Title,
-        [string]$File = "judul.txt"
-    )
-
-    Add-Content -Path $File -Value "`r`n$Title"
+    param ([string]$Title, [string]$File = "judul.txt")
+    Add-Content -Path $File -Value "`r`n$Title" -Encoding UTF8
 }
 
-# Automatic sort title registry
 function Sort-TitleRegistry {
-    param (
-        [string]$File = "judul.txt"
-    )
-
+    param ([string]$File = "judul.txt")
     if (-not (Test-Path $File)) { return }
-
-    $sorted = Get-Content $File |
-        Where-Object { $_.Trim() -ne "" } |
-        Sort-Object { $_.ToLower() } -Unique
-
-    Set-Content -Path $File -Value $sorted
+    $sorted = Get-Content $File | Where-Object { $_.Trim() -ne "" } | Sort-Object { $_.ToLower() } -Unique
+    Set-Content -Path $File -Value $sorted -Encoding UTF8
 }
 
-# Scan semua file
-Get-ChildItem -File | Where-Object {
-    $videoExt -contains $_.Extension.ToLower()
-} | ForEach-Object {
-
+Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() } | ForEach-Object {
     $original = $_.Name
     $name = $_.BaseName
-    $ext  = $_.Extension
+    $ext = $_.Extension
 
-    # reset metadata
     $reso = ""
     $dim = ""
     $studio = ""
@@ -77,49 +49,51 @@ Get-ChildItem -File | Where-Object {
     $hasAuthor = $false
 
     try {
-        # =============================
-        # 1 HAPUS DOMAIN / NEKOPOI
-        # =============================
-        $name = $name -replace '(?i)nekopoi', ''
-        $name = $name -replace '(?i)\.(care|fun|tv|id|io|xyz|site|club|live|net|org|cc|me|pw|biz|info|asia|us|uk|pro|lol|trade|host|band|top)\b', ''
-
-        # =============================
-        # 2 RESOLUTION (ambil terakhir)
-        # =============================
-        if ($name -match '(\d{3,4})[pP](?!.*\d{3,4}[pP])') {
-            $reso = "$($matches[1])P"
-            $name = $name -replace "$($matches[1])[pP]", ''
+        # 1. Ekstrak RESOLUTION dulu
+        if ($name -match '(?i)(\d{3,4})[pP](?![^0-9]*\d{3,4}[pP])') {
+            $reso = $Matches[1] + "P"
+            $name = $name -replace [regex]::Escape($Matches[0]), ''
         }
 
-        # =============================
-        # 3 DIMENSION (LIVE2D / L2D / 2D / 3D)
-        # =============================
-        if ($name -match '(?i)\b(LIVE2D|L2D)\b') {
-            $dim = "LIVE2D"
-            $name = $name -replace '(?i)\b(LIVE2D|L2D)\b',''
-        } elseif ($name -match '(?i)\b(2D|3D)\b') {
-            $dim = $matches[1].ToUpper()
-            $name = $name -replace '(?i)\b(2D|3D)\b',''
+        # 2. Ekstrak CODE JAV – fix FC2-PPV selalu lengkap
+        $patterns = @(
+            '(?i)FC2[-_\s]*PPV[-_\s]*(\d{3,9})',
+            '(?i)FC2[-_\s]*(\d{3,9})',
+            '(?i)(KBJ)[-_\s]?(\d{6,12})',
+            '(?i)(CN)[-_\s]?(\d{6,12})',
+            '(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
+            '(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|CN|MD|HEYZO|SIRO|1PON|CARIB|FPRE|CUS|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
+            '(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)'
+        )
+
+        foreach ($pat in $patterns) {
+            if ($name -match $pat) {
+                $codeExtract = $Matches[0].ToUpper() -replace '\s+', '' -replace '_', '-'
+                # Khusus FC2-PPV selalu tambah prefix lengkap
+                if ($codeExtract -match '^FC2PPV(\d+)$') {
+                    $codeExtract = "FC2-PPV-" + $Matches[1]
+                } elseif ($codeExtract -match '^FC2(\d+)$') {
+                    $codeExtract = "FC2-PPV-" + $Matches[1]
+                }
+                $code = $codeExtract
+                $name = $name -replace [regex]::Escape($Matches[0]), ''
+            }
         }
 
-        # =============================
-        # 4 AUTHOR — By Author
-        # =============================
+        # 3. Author By xxx
         if ($name -match '(?i)\bBy\s+([^\[\]\(\)\-]+)') {
-            $studio = $matches[1].Trim()
+            $studio = $Matches[1].Trim()
             $name = $name -replace '(?i)\bBy\s+[^\[\]\(\)\-]+',''
             $hasAuthor = $true
         }
 
-        # =============================
-        # 5 AUTHOR — whitelist prefix
-        # =============================
+        # 4. Author whitelist prefix – pakai nama asli dari txt
         if (-not $hasAuthor) {
             foreach ($a in $authorList) {
                 $esc = [regex]::Escape($a)
                 $escFlex = $esc -replace '\ ', '[\s_]+'
                 if ($name -match "(?i)^\s*($escFlex)([\s_-]+)?") {
-                    $studio = $a
+                    $studio = $a  # nama asli (neNeG tetep neNeG)
                     $name = $name -replace "(?i)^\s*($escFlex)([\s_-]+)?", ''
                     $hasAuthor = $true
                     break
@@ -127,95 +101,87 @@ Get-ChildItem -File | Where-Object {
             }
         }
 
-        # =============================
-        # 6 CLEAN SYMBOL
-        # =============================
+        # 5. Hapus domain & nekopoi
+        $name = $name -replace '(?i)nekopoi|neko poi|javhd|javlibrary|javmost|javfinder|javtiful', ''
+        $name = $name -replace '(?i)\.(care|fun|tv|id|io|xyz|site|club|live|net|org|cc|me|pw|biz|info|asia|us|uk|pro|lol|trade|host|band|top|cam|red|pink|sexy|ninja|download|stream|watch|video|porn|sex|adult|cyou)\b', ''
+
+        # 6. Dimension
+        if ($name -match '(?i)\b(LIVE2D|L2D|2D|3D)\b') {
+            $dim = $Matches[0].ToUpper()
+            $name = $name -replace '(?i)\b(LIVE2D|L2D|2D|3D)\b',''
+        }
+
+        # 7. Clean symbol
         $name = $name -replace '[\[\]{}()_]+',' '
 
-        # =============================
-        # 7 CODE JAV
-        # =============================
-        $patterns = @(
-            '(?i)FC2[-_\s]*PPV[-_\s]*(\d{3,9})',
-            '(?i)FC2[-_\s]*(\d{3,9})',
-            '(?i)(KBJ)[-_\s]?(\d{6,12})',
-            '(?i)(CN)[-_\s]?(\d{6,12})',
-            '(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
-            '\b([A-Z]{2,5})[-_\s]?(\d{2,5})(-\d+)?\b'
-        )
+        # 8. Normalize
+        $name = ($name -replace '\s{2,}',' ').Trim()
 
-        foreach ($pat in $patterns) {
-            if ($name -match $pat) {
-                if ($matches.Count -ge 3) {
-                    $codeExtract = "$($matches[1].ToUpper())-$($matches[2])$($matches[3])"
-                } else {
-                    $codeExtract = $matches[0].ToUpper()
-                }
-                $code = ($code, $codeExtract) -join " "
-                $name = $name -replace $pat,''
+        # 9. Fallback aman
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            if ($code) {
+                $name = $code
+                Write-Host "Judul kosong → pakai code: $code" -ForegroundColor Yellow
+            } else {
+                $name = ($_.BaseName -replace '(?i)nekopoi|uncen|uncensored|\.(care|fun|tv|id|io|xyz).*',' ' -replace '[\[\]{}()_]+',' ' -replace '\s{2,}',' ').Trim()
+                if ([string]::IsNullOrWhiteSpace($name)) { $name = "Video_Tanpa_Judul" }
+                Write-Host "Fallback clean basename: $name" -ForegroundColor DarkYellow
+            }
+            $titleNullCount++
+        } else {
+            $textInfo = (Get-Culture).TextInfo
+            $name = $textInfo.ToTitleCase($name.ToLower())
+        }
+
+        # 10. Build final – UNCEN sebelum reso, tambah kalau ada di nama asli (mentah), tapi jangan double pas sudah bersih
+        $final = ""
+        if ($code) { $final += $code.ToUpper() + " - " }
+        if ($dim) { $final += $dim + " " }
+        if ($studio) { $final += $studio + " - " }
+        $final += $name
+
+        # Cek indikasi UNCEN dari nama asli (mentah)
+        $uncenTag = ""
+        if ($original -match '(?i)uncen|uncensored|leak') {
+            $uncenTag = "UNCENSORED"  # pakai full word biar keliatan premium
+        }
+
+        # Prioritas keyword.txt kalau ada
+        if ($keywordList -contains "UNCENSORED") {
+            $uncenTag = "UNCENSORED"
+        } elseif ($keywordList -contains "UNCEN" -or $keywordList -contains "LEAK") {
+            $uncenTag = "UNCEN"
+        }
+
+        # Tambah tag kalau ada indikasi, tapi cek jangan double di $final
+        if ($uncenTag -and $final -notmatch '(?i)\b(uncen|uncensored|leak)\b') {
+            $final += " $uncenTag"
+        }
+
+        # Tambah suffix -U kalau ada di kode (tambahan request kamu)
+        if ($code -and $code -match '-U$') {
+            if ($final -notmatch '(?i)\b(uncen|uncensored|leak)\b') {
+                $final += " UNCEN"
             }
         }
 
-        # =============================
-        # 8 NORMALIZE
-        # =============================
-        $name = ($name -replace '\s{2,}',' ').Trim()
-        $code = ($code -replace '\s{2,}',' ').Trim()
+        if ($reso) { $final += " $reso" }
 
-        $textInfo = (Get-Culture).TextInfo
-        $name = $textInfo.ToTitleCase($name.ToLower())
-
-        # =============================
-        # 9 FALLBACK
-        # =============================
-        if ([string]::IsNullOrWhiteSpace($name)) {
-            Write-Host "Judul kosong → fallback baseName: $original" -ForegroundColor Yellow
-            $name = $textInfo.ToTitleCase($_.BaseName.ToLower())
-            $titleNullCount++
-        }
-
-        # =============================
-        # 10 BUILD FINAL
-        # =============================
-        $final = ""
-        if ($code)   { $final += "$code " }
-        if ($dim)    { $final += "$dim " }
-        if ($studio) { $final += "$studio - " }
-        $final += $name
-        if ($reso)   { $final += " $reso" }
-
-        # =============================
-        # 10.2 FINAL NORMALIZATION
-        # =============================
         $final = $final -replace '\s*(-\s*){2,}', ' - '
         $final = $final -replace '\s{2,}', ' '
         $final = $final.Trim(' -')
 
-        # =============================
-        # FINAL KEYWORD ENFORCER (ANTI TITLECASE)
-        # =============================
+        # 11. Keyword enforcer
         foreach ($k in $keywordList) {
             $esc = [regex]::Escape($k)
-            $final = [regex]::Replace(
-                $final,
-                "(?i)\b$esc\b",
-                $k
-            )
+            $final = [regex]::Replace($final, "(?i)\b$esc\b", $k)
         }
 
-        $newName = ($final + $ext)
+        $newName = $final + $ext
 
-        # =============================
-        # 10.3 TITLE REGISTRY CHECK (judul.txt)
-        # =============================
+        # 12. Duplikat check
         $key = $newName.ToLower()
-        $titleKey = $final.ToLower()
-
-        # buang suffix duplikat umum
-        $titleKey = $titleKey -replace '\s*\((\d+|0\d+|copy|copi|dup|v\d+|ver\s*\d+)\)\s*$',''
-        $titleKey = $titleKey -replace '\s*\b(copy|copi|duplicate|dup|v\d+)\b\s*$',''
-
-        # normalize space
+        $titleKey = $final.ToLower() -replace '\s*\((\d+|copy|copi|dup|v\d+|ver\s*\d+)\)\s*$','' -replace '\s*\b(copy|copi|duplicate|dup|v\d+)\b\s*$',''
         $titleKey = ($titleKey -replace '\s{2,}',' ').Trim()
 
         if ($titleRegistry.ContainsKey($titleKey)) {
@@ -225,52 +191,44 @@ Get-ChildItem -File | Where-Object {
             return
         }
 
-        # =============================
-        # 11 DUPLICATE
-        # =============================
         if ($seenTitles.ContainsKey($key)) {
             Write-Host "Duplicate → dipindah: '$original'" -ForegroundColor Cyan
             Move-Item $_.FullName $dupFolder -Force
             $duplicateMoveCount++
             return
         }
-
         $seenTitles[$key] = $true
 
-        # =============================
-        # 12 RENAME + SAVE TO JUDUL.TXT
-        # =============================
         if ($original -ceq $newName) {
             $skipCleanCount++
             return
         }
 
         Rename-Item -LiteralPath $_.FullName -NewName $newName -ErrorAction Stop
-        Write-Host "[RENAMED] $original  ->  $newName" -ForegroundColor Green
+        Write-Host "[RENAMED] $original -> $newName" -ForegroundColor Green
+
         if (-not $titleRegistry.ContainsKey($titleKey)) {
             Add-TitleRegistry -Title $final
             $titleRegistry[$titleKey] = $true
         }
         $renamedCount++
-        return
     }
-    catch { 
+    catch {
         Write-Host "Gagal proses '$original' : $_" -ForegroundColor Red
     }
 }
 
 Sort-TitleRegistry
 
-    if ($renamedCount -eq 0 -and $duplicateMoveCount -eq 0 -and $titleNullCount -eq 0) { 
-        Write-Host "Semua file udah rapi bro, Nothing to cleanup lagi~"  -ForegroundColor Green
-    } 
-    else { 
-        Write-Host "Masih ada yang diberesin, tapi udah aman kok" -ForegroundColor Cyan
-    }
+if ($renamedCount -eq 0 -and $duplicateMoveCount -eq 0 -and $titleNullCount -eq 0) {
+    Write-Host "Semua file udah rapi bro, Nothing to cleanup lagi~" -ForegroundColor Green
+} else {
+    Write-Host "Masih ada yang diberesin, tapi udah aman kok" -ForegroundColor Cyan
+}
 
 Write-Host "`n=========== RINGKASAN ===========" -ForegroundColor Magenta
-Write-Host "✔ Di-rename        : $renamedCount file" -ForegroundColor Green
-Write-Host "⇰ Sudah rapi       : $skipCleanCount file" -ForegroundColor Cyan
+Write-Host "✔ Di-rename : $renamedCount file" -ForegroundColor Green
+Write-Host "⇰ Sudah rapi : $skipCleanCount file" -ForegroundColor Cyan
 Write-Host "⇲ Duplicate pindah : $duplicateMoveCount file" -ForegroundColor Red
-Write-Host "↻ Judul kosong     : $titleNullCount file" -ForegroundColor Yellow
+Write-Host "↻ Judul kosong : $titleNullCount file" -ForegroundColor Yellow
 Write-Host "=================================" -ForegroundColor Magenta
