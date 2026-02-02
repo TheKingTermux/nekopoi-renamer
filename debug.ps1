@@ -70,6 +70,7 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
             '(?i)FC2[-_\s]*(\d{3,9})',
             '(?i)(KBJ)[-_\s]?(\d{6,12})',
             '(?i)(CN)[-_\s]?(\d{6,12})',
+            '(?i)(CUS)[-_\s]?(\d{3,4})(-\d+)?',
             '(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
             '(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|CN|MD|HEYZO|SIRO|1PON|CARIB|FPRE|CUS|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
             '(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)'
