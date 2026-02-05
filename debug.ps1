@@ -114,7 +114,7 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
         }
 
         # 5. Hapus domain & nekopoi
-        $name = $name -replace '(?i)nekopoi|neko poi|javhd|javlibrary|javmost|javfinder|javtiful', ''
+        $name = $name -replace '(?i)nekopoi|neko poi|javhd|javlibrary|javmost|javfinder|javtiful|nekpoi|nek poi', ''
         $name = $name -replace '(?i)\.(care|fun|tv|id|io|xyz|site|club|live|win|net|org|cc|me|pw|biz|info|asia|us|uk|pro|lol|trade|host|band|top|cam|red|pink|sexy|ninja|download|stream|watch|video|porn|sex|adult|cyou)\b', ''
 
         # 6. Dimension
@@ -147,12 +147,37 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
             $name = $textInfo.ToTitleCase($name.ToLower())
         }
 
+        # Cek ulang Author
+        if ($name -match '(?i)\bBy\s+([^\[\]\(\)\-]+)') {
+            $studio = $Matches[1].Trim()
+            $name = $name -replace '(?i)\bBy\s+[^\[\]\(\)\-]+',''
+            $hasAuthor = $true
+        }
+
+        if (-not $hasAuthor) {
+            foreach ($a in $authorList) {
+                $esc = [regex]::Escape($a)
+                $escFlex = $esc -replace '\ ', '[\s_]+'
+                if ($name -match "(?i)^\s*($escFlex)([\s_-]+)?") {
+                    $studio = $a
+                    $name = $name -replace "(?i)^\s*($escFlex)([\s_-]+)?", ''
+                    $hasAuthor = $true
+                    break
+                }
+            }
+        }
+
         # 10. Build final – UNCEN sebelum reso, tambah kalau ada indikasi kuat
         $final = ""
         if ($code -and -not $isFallbackToCode) { $final += $code.ToUpper() + " - " }
         if ($dim) { $final += $dim + " " }
         if ($studio) { $final += $studio + " - " }
         $final += $name
+
+        # Tambah NTR di paling depan kalau nama asli mengandung Netorare / NTR
+        if ($original -match '(?i)\b(NTR|Netorare)\b') {
+            $final = "NTR " + $final
+        }
 
         # Cek UNCEN tag – tambah kalau ada indikasi kuat di nama asli atau -U di kode
         $uncenTag = ""
