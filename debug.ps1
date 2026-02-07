@@ -11,7 +11,7 @@ $lainnyaCount = 0
 $dupFolder = "_DUPLICATE"
 if (-not (Test-Path $dupFolder)) { New-Item -ItemType Directory -Name $dupFolder | Out-Null }
 
-# Folder baru untuk snapsave & non-nekopoi
+# Folder baru untuk snapsave, fbdownlaod & non-nekopoi
 $lainnyaFolder = "Lainnya"
 if (-not (Test-Path $lainnyaFolder)) { New-Item -ItemType Directory -Name $lainnyaFolder | Out-Null }
 
