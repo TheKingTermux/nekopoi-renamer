@@ -35,11 +35,13 @@ if (Test-Path $titleFile) {
     }
 }
 
+# Save title registry
 function Add-TitleRegistry {
     param ([string]$Title, [string]$File = "judul.txt")
     Add-Content -Path $File -Value "`r`n$Title" -Encoding UTF8
 }
 
+# Automatic sort title registry
 function Sort-TitleRegistry {
     param ([string]$File = "judul.txt")
     if (-not (Test-Path $File)) { return }
@@ -47,12 +49,14 @@ function Sort-TitleRegistry {
     Set-Content -Path $File -Value $sorted -Encoding UTF8
 }
 
+# Scan semua file
 Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() } | ForEach-Object {
     $original = $_.Name
     $name = $_.BaseName
     $ext = $_.Extension
     $currentDir = $_.DirectoryName
 
+    # reset metadata
     $reso = ""
     $dim = ""
     $studio = ""
@@ -60,6 +64,7 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
     $hasAuthor = $false
     $isFallbackToCode = $false
 
+    # Main script
     try {
         # 1. Ekstrak RESOLUTION dulu
         if ($name -match '(?i)(\d{3,4})[pP](?![^0-9]*\d{3,4}[pP])') {
