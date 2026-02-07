@@ -4,10 +4,16 @@ $renamedCount = 0
 $skipCleanCount = 0
 $duplicateMoveCount = 0
 $titleNullCount = 0
+$realCount = 0
+$lainnyaCount = 0
 
 # Folder pembuangan duplikat
 $dupFolder = "_DUPLICATE"
 if (-not (Test-Path $dupFolder)) { New-Item -ItemType Directory -Name $dupFolder | Out-Null }
+
+# Folder baru untuk snapsave & non-nekopoi
+$lainnyaFolder = "Lainnya"
+if (-not (Test-Path $lainnyaFolder)) { New-Item -ItemType Directory -Name $lainnyaFolder | Out-Null }
 
 # Load author whitelist
 $authorFile = "author.txt"
@@ -29,13 +35,11 @@ if (Test-Path $titleFile) {
     }
 }
 
-# Save title registry
 function Add-TitleRegistry {
     param ([string]$Title, [string]$File = "judul.txt")
     Add-Content -Path $File -Value "`r`n$Title" -Encoding UTF8
 }
 
-# Automatic sort title registry
 function Sort-TitleRegistry {
     param ([string]$File = "judul.txt")
     if (-not (Test-Path $File)) { return }
@@ -43,22 +47,19 @@ function Sort-TitleRegistry {
     Set-Content -Path $File -Value $sorted -Encoding UTF8
 }
 
-# Scan semua file
 Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() } | ForEach-Object {
     $original = $_.Name
     $name = $_.BaseName
     $ext = $_.Extension
-    $currentPath = $_.FullName
     $currentDir = $_.DirectoryName
 
-    # reset metadata
     $reso = ""
     $dim = ""
     $studio = ""
     $code = ""
     $hasAuthor = $false
+    $isFallbackToCode = $false
 
-    # Main script
     try {
         # 1. Ekstrak RESOLUTION dulu
         if ($name -match '(?i)(\d{3,4})[pP](?![^0-9]*\d{3,4}[pP])') {
@@ -75,6 +76,7 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
             '(?i)(CUS)[-_\s]?(\d{3,4})(-\d+)?',
             '(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
             '(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|CN|MD|HEYZO|SIRO|1PON|CARIB|FPRE|CUS|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
+            '(?i)\b([A-Z0-9]{3,5})[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
             '(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)'
         )
 
@@ -87,7 +89,7 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
                 } elseif ($codeExtract -match '^FC2(\d+)$') {
                     $codeExtract = "FC2-PPV-" + $Matches[1]
                 }
-                $code = $codeExtract
+                $code = $codeExtract.ToUpper() -replace '-\s*', '-'  # hapus spasi setelah "-"
                 $name = $name -replace [regex]::Escape($Matches[0]), ''
             }
         }
@@ -126,8 +128,22 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
         # 7. Clean symbol
         $name = $name -replace '[\[\]{}()_]+',' '
 
-        # 8. Normalize
+        # 8. Normalize (gak pakai ToTitleCase biar kode & nama lebih konsisten)
         $name = ($name -replace '\s{2,}',' ').Trim()
+
+        # --- DETEKSI & BERSIHKAN UNCENSORED DULU (sebelum fallback) ---
+        $uncenTag = ""
+
+        # Cek indikasi uncen dari nama asli ATAU suffix -U di kode
+        if ($original -match '(?i)\b(uncen|uncensored|leak)\b' -or ($code -and $code -match '-U$')) {
+            $uncenTag = "UNCENSORED"
+        }
+
+        # Hapus kata uncen dari judul supaya gak kebawa ke tengah
+        # Pake \b biar cuma hapus kata utuh, gak nyentuh "uncertain" atau "luncur" dll
+        $name = $name -replace '(?i)\b(uncen|uncensored|leak)\b',''
+        $name = $name -replace '\s{2,}',' '
+        $name = $name.Trim()
 
         # 9. Fallback aman – kalau kosong pakai code, tapi jangan tambah double di final
         $isFallbackToCode = $false
@@ -142,18 +158,14 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
                 Write-Host "Fallback clean basename: $name" -ForegroundColor DarkYellow
             }
             $titleNullCount++
-        } else {
-            $textInfo = (Get-Culture).TextInfo
-            $name = $textInfo.ToTitleCase($name.ToLower())
         }
 
-        # Cek ulang Author
+        # Cek ulang Author (tahap 2)
         if ($name -match '(?i)\bBy\s+([^\[\]\(\)\-]+)') {
             $studio = $Matches[1].Trim()
             $name = $name -replace '(?i)\bBy\s+[^\[\]\(\)\-]+',''
             $hasAuthor = $true
         }
-
         if (-not $hasAuthor) {
             foreach ($a in $authorList) {
                 $esc = [regex]::Escape($a)
@@ -167,37 +179,33 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
             }
         }
 
-        # 10. Build final – UNCEN sebelum reso, tambah kalau ada indikasi kuat
+        # 10. Build final – kode upper case, UNCENSORED paling akhir sebelum resolusi
         $final = ""
-        if ($code -and -not $isFallbackToCode) { $final += $code.ToUpper() + " - " }
+        if ($code -and -not $isFallbackToCode) { $final += $code }
         if ($dim) { $final += $dim + " " }
         if ($studio) { $final += $studio + " - " }
-        $final += $name
+        $final += " - " + $name  # pemisah " - " di sini, biar cuma muncul kalau perlu
 
         # Tambah NTR di paling depan kalau nama asli mengandung Netorare / NTR
         if ($original -match '(?i)\b(NTR|Netorare)\b') {
-            $final = "NTR " + $final
+            $final = "NTR - " + $final
         }
 
-        # Cek UNCEN tag – tambah kalau ada indikasi kuat di nama asli atau -U di kode
-        $uncenTag = ""
-        $hasUncenInName = $original -match '(?i)\b(uncen|uncensored|leak)\b'
-        $hasUncenSuffix = $code -and $code -match '-U$'
-
-        if ($hasUncenInName -or $hasUncenSuffix) {
-            $uncenTag = "UNCENSORED"
-        }
-
-        # Tambah tag kalau ada indikasi, tapi cek jangan double di $final
-        if ($uncenTag -and $final -notmatch '(?i)\b(uncen|uncensored|leak)\b') {
+        # Tambah Uncensored SETELAH judul, sebelum resolusi
+        if ($uncenTag) {
             $final += " $uncenTag"
         }
 
         if ($reso) { $final += " $reso" }
 
-        $final = $final -replace '\s*(-\s*){2,}', ' - '
-        $final = $final -replace '\s{2,}', ' '
-        $final = $final.Trim(' -')
+        # Bersihin tanda "-" ekstra & spasi berlebih
+        if (-not $code) {  # hanya normalisasi kalau gak ada kode
+            $final = $final -replace '\s*-\s*', ' - '          # normalisasi "-"
+        }
+        $final = $final -replace '^\s*-+\s*', ''               # hapus "-" di awal
+        $final = $final -replace ' - - ', ' - '                # hapus "-" dobel kalau kelewat
+        $final = $final -replace '\s{2,}', ' '                 # spasi dobel jadi satu
+        $final = $final.Trim(' -')                             # hapus "-" atau spasi di ujung
 
         # 11. Keyword enforcer
         foreach ($k in $keywordList) {
@@ -211,14 +219,12 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
         $key = $newName.ToLower()
         $titleKey = $final.ToLower() -replace '\s*\((\d+|copy|copi|dup|v\d+|ver\s*\d+)\)\s*$','' -replace '\s*\b(copy|copi|duplicate|dup|v\d+)\b\s*$',''
         $titleKey = ($titleKey -replace '\s{2,}',' ').Trim()
-
         $isDuplicate = $false
         if ($titleRegistry.ContainsKey($titleKey)) {
             Write-Host "Judul duplikat (judul.txt): '$original'" -ForegroundColor Cyan
             $isDuplicate = $true
             $duplicateMoveCount++
         }
-
         if ($seenTitles.ContainsKey($key)) {
             Write-Host "Duplicate nama file: '$original'" -ForegroundColor Cyan
             $isDuplicate = $true
@@ -234,8 +240,9 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
             $renamedCount++
         }
 
-        # 13. Pindah ke folder "Real" kalau ada kode JAV (prioritas utama untuk semua live-action JAV)
+        # 13. Pindah file berdasarkan prioritas (fix permanen)
         if ($code) {
+            # Prioritas tertinggi: punya kode JAV → masuk Real (termasuk cosplay, JAV, dll)
             $targetFolder = Join-Path $currentDir "Real"
             if (-not (Test-Path $targetFolder)) {
                 New-Item -ItemType Directory -Path $targetFolder | Out-Null
@@ -243,12 +250,27 @@ Get-ChildItem -File | Where-Object { $videoExt -contains $_.Extension.ToLower() 
             $targetPath = Join-Path $targetFolder $newName
             Move-Item -LiteralPath (Join-Path $currentDir $newName) -Destination $targetPath -Force
             Write-Host "[MOVED] $newName → folder Real" -ForegroundColor Yellow
+            $realCount++
         }
-        # Kalau duplikat tapi gak punya kode JAV → pindah ke _DUPLICATE
         elseif ($isDuplicate) {
+            # Prioritas kedua: duplikat tapi gak punya kode JAV → masuk _DUPLICATE
             $targetPath = Join-Path $dupFolder $newName
-            Move-Item $_.FullName $targetPath -Force
+            Move-Item -LiteralPath (Join-Path $currentDir $newName) -Destination $targetPath -Force
             Write-Host "[MOVED] $newName → folder _DUPLICATE (no code JAV)" -ForegroundColor DarkCyan
+        }
+        # Fitur baru: pindah ke Lainnya kalau ada snapsave ATAU gak ada nekopoi di nama asli
+        else {
+            $lowerOriginal = $original.ToLower()
+            if ($lowerOriginal -match '\b(snapsave|fbdownloader|fbdownload)\b' -or $lowerOriginal -notmatch '\b(nekopoi|nekpoi|nek poi|neko poi)\b') {
+                $targetFolder = Join-Path $currentDir "Lainnya"
+                if (-not (Test-Path $targetFolder)) {
+                    New-Item -ItemType Directory -Path $targetFolder | Out-Null
+                }
+                $targetPath = Join-Path $targetFolder $newName
+                Move-Item -LiteralPath (Join-Path $currentDir $newName) -Destination $targetPath -Force
+                Write-Host "[MOVED] $newName → folder Lainnya (snapsave atau non-nekopoi)" -ForegroundColor Magenta
+                $lainnyaCount++
+            }
         }
 
         if (-not $titleRegistry.ContainsKey($titleKey)) {
@@ -270,8 +292,12 @@ if ($renamedCount -eq 0 -and $duplicateMoveCount -eq 0 -and $titleNullCount -eq 
 }
 
 Write-Host "`n=========== RINGKASAN ===========" -ForegroundColor Magenta
-Write-Host "✔ Di-rename   : $renamedCount file" -ForegroundColor Green
+Write-Host "✔ Di-rename    : $renamedCount file" -ForegroundColor Green
 Write-Host "⇰ Sudah rapi   : $skipCleanCount file" -ForegroundColor Cyan
-Write-Host "⇲ Duplicate    : $duplicateMoveCount file" -ForegroundColor Red
 Write-Host "↻ Judul kosong : $titleNullCount file" -ForegroundColor Yellow
+Write-Host "=================================" -ForegroundColor Magenta
+Write-Host "`n===========  OUTPUT  ===========" -ForegroundColor Magenta
+Write-Host "✔ Real         : $realCount file" -ForegroundColor Green
+Write-Host "⇰ Lainnya      : $lainnyaCount file" -ForegroundColor Cyan
+Write-Host "⇲ Duplicate    : $duplicateMoveCount file" -ForegroundColor Red
 Write-Host "=================================" -ForegroundColor Magenta
