@@ -31,7 +31,8 @@ Cocok buat koleksi gede biar **rapi, konsisten, dan bebas duplikat**. Hidup jadi
 
 Pastikan file berikut ada di folder yang sama dengan file video NekoPoi anda:
 
-📄 `nekopoi-renamer.ps1`  
+📄 `debug.ps1`  
+📄 `debug.py`  
 📄 `cleaner.bat`  
 📄 `author.txt`  
 📄 `keyword.txt`  
