@@ -2,21 +2,24 @@
 cd /d "%~dp0"
 
 :MainMenu
+cls
 echo "====================================================="
 echo "   AUTO JAV + PPV + FC2 + KBJ + CN + CUS + Nekopoi"
 echo "           CLEANER By TheKingTermux~ 💕"
 echo "====================================================="
 echo ""
-echo "Pilih 1 untuk Python"
-echo "pilih 2 untuk Powershell (Deprecated)"
-echo "Pilih 3 untuk Keluar"
+echo "Pilih 1 untuk Python (Main Script)"
+echo "Pilih 2 untuk Python (Cleaner)"
+echo "pilih 3 untuk Powershell (Deprecated)"
+echo "Pilih 4 untuk Keluar"
 
 echo:
-set /p pil= Masukkan Pilihan Anda [1-3] : 
+set /p pil= Masukkan Pilihan Anda [1-4] : 
 
 if "%pil%"=="1" goto RunStable
-if "%pil%"=="2" goto RunDeprecated
-if "%pil%"=="3" goto Exit
+if "%pil%"=="2" goto RunCleaner
+if "%pil%"=="3" goto RunDeprecated
+if "%pil%"=="4" goto Exit
 goto MainMenu
 
 :RunStable
@@ -28,6 +31,29 @@ echo [Y] Run again |  [N] Back
 echo -------------------------
 set /p ulang= Choose [Y/N]: 
 if /I "%ulang%"=="Y" goto RunStable
+if /I "%ulang%"=="N" goto MainMenu
+goto MainMenu
+
+:RunCleaner
+cls
+echo "Gunakan ini jika Main Script (Python) tidak bekerja dengan baik"
+echo "Pilih 1 untuk Lanjut, Pilih 2 untuk Kembali"
+
+echo:
+set /p pilclean= Masukkan Pilihan Anda [1-2] : 
+
+if "%pilclean%"=="1" goto RunCleanerFix
+if "%pilclean%"=="2" goto MainMenu
+
+:RunCleanerFix
+cls
+python cleaner.py
+pause
+echo -------------------------
+echo [Y] Run again |  [N] Back
+echo -------------------------
+set /p ulang= Choose [Y/N]: 
+if /I "%ulang%"=="Y" goto RunCleanerFix
 if /I "%ulang%"=="N" goto MainMenu
 goto MainMenu
 
@@ -48,4 +74,5 @@ cls
 echo "Terimakasih sudah menggunakan script ini"
 pause
 exit
+
 
