@@ -33,6 +33,7 @@ Pastikan file berikut ada di folder yang sama dengan file video NekoPoi anda:
 
 📄 `debug.ps1`  
 📄 `debug.py`  
+📄 `cleaner.py`  
 📄 `cleaner.bat`  
 📄 `author.txt`  
 📄 `keyword.txt`  
