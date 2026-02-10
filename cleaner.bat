@@ -21,7 +21,7 @@ goto MainMenu
 
 :RunStable
 cls
-powershell -NoExit -ExecutionPolicy Bypass -File ".\debug.py"
+python debug.py
 pause
 echo -------------------------
 echo [Y] Run again |  [N] Back
@@ -48,3 +48,4 @@ cls
 echo "Terimakasih sudah menggunakan script ini"
 pause
 exit
+
