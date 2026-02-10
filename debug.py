@@ -47,7 +47,7 @@ def clean_symbols(name):
 def remove_domains(name):
     name = re.sub(r'https?://\S+', '', name, flags=re.I)
     name = re.sub(r'www\.\S+', '', name, flags=re.I)
-    name = re.sub(r'\b[a-z0-9-]+\.(care|fun|tv|id|io|xyz|site|club|live|win|net|org|cc|me|pw|biz|info|asia)\b', '', name, flags=re.I)
+    name = re.sub(r'\b[a-z0-9-]+\.(care|fun|tv|id|io|xyz|site|club|live|win|net|org|cc|me|pw|biz|info|asia|us|uk|pro|lol|trade|host|band|top|cam|red|pink|sexy|ninja|download|stream|watch|video|porn|sex|adult|cyou)\b', '', name, flags=re.I)
     return name
 
 def extract_resolution(name):
@@ -186,9 +186,11 @@ for folder in [real_folder, dup_folder, lainnya_folder]:
 # ==============================
 
 renamed_count = 0
+skip_clean_count = 0
+title_null_count = 0
 real_count = 0
-dup_count = 0
 lainnya_count = 0
+duplicate_move_count = 0
 
 # ==============================
 # MAIN LOOP
@@ -202,11 +204,18 @@ for file in os.listdir(BASE_DIR):
     new_name, code = build_name(file)
     new_path = os.path.join(BASE_DIR, new_name)
 
-    title_key = new_name.lower()
+    title_key = new_name.lower().strip()
+
+    # === TITLE NULL CHECK ===
+    name_only = os.path.splitext(new_name)[0].strip()
+    if not name_only:
+        print(f"[TITLE NULL] {file}")
+        title_null_count += 1
+        continue
 
     is_duplicate = title_key in seen_titles
 
-    # RENAME
+    # === RENAME ===
     if new_name != file:
         print(f"[RENAMED] {file}  ->  {new_name}")
         renamed_count += 1
@@ -214,12 +223,13 @@ for file in os.listdir(BASE_DIR):
             os.rename(old_path, new_path)
     else:
         new_path = old_path
+        skip_clean_count += 1
 
-    # MOVE LOGIC
+    # === MOVE LOGIC ===
     if is_duplicate:
         destination = os.path.join(dup_folder, new_name)
         print(f"[DUPLICATE] {new_name} -> _DUPLICATE/")
-        dup_count += 1
+        duplicate_move_count += 1
         if not DRY_RUN:
             shutil.move(new_path, destination)
 
@@ -238,8 +248,11 @@ for file in os.listdir(BASE_DIR):
             lainnya_count += 1
             if not DRY_RUN:
                 shutil.move(new_path, destination)
+        else:
+            lainnya_count += 1
 
     seen_titles.add(title_key)
+
 
 # ==============================
 # SAVE REGISTRY
@@ -254,9 +267,14 @@ if not DRY_RUN:
 # SUMMARY
 # ==============================
 
-print("\n=========== SUMMARY ===========")
-print(f"Renamed   : {renamed_count}")
-print(f"Real      : {real_count}")
-print(f"Duplicate : {dup_count}")
-print(f"Lainnya   : {lainnya_count}")
-print("================================")
+print("\n=========== RINGKASAN ===========")
+print(f"✔ Di-rename    : {renamed_count}")
+print(f"⇰ Sudah rapi   : {skip_clean_count}")
+print(f"↻ Judul kosong : {title_null_count}")
+print("=================================")
+
+print("\n===========  OUTPUT  ===========")
+print(f"✔ Real         : {real_count}")
+print(f"⇰ Lainnya      : {lainnya_count}")
+print(f"⇲ Duplicate    : {duplicate_move_count}")
+print("=================================")
