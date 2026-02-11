@@ -59,6 +59,17 @@ goto MainMenu
 
 :RunDeprecated
 cls
+echo "Script ini sudah tidak bekerja dengan baik dibandingkan dengan Main Script (Python)"
+echo "Pilih 1 untuk Lanjut, Pilih 2 untuk Kembali"
+
+echo:
+set /p pildepr= Masukkan Pilihan Anda [1-2] : 
+
+if "%pildepr%"=="1" goto RunDeprecatedFix
+if "%pildepr%"=="2" goto MainMenu
+
+:RunDeprecatedFix
+cls
 powershell -NoExit -ExecutionPolicy Bypass -File  ".\debug.ps1"
 pause
 echo -------------------------
@@ -74,5 +85,6 @@ cls
 echo "Terimakasih sudah menggunakan script ini"
 pause
 exit
+
 
 
