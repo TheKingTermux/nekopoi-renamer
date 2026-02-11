@@ -10,10 +10,19 @@ VIDEO_EXT = [".mp4", ".mkv", ".mov", ".webm"]
 BASE_DIR = os.getcwd()
 AUTHOR_FILE = "author.txt"
 KEYWORD_FILE = "keyword.txt"
-TITLE_REGISTRY = "judul.debug.txt"
+TITLE_REGISTRY = "judul.txt"
 
-DRY_RUN = True  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
+DRY_RUN = False  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
 
+def safe_move(src, dst):
+    if os.path.exists(dst):
+        base, ext = os.path.splitext(dst)
+        counter = 1
+        while os.path.exists(f"{base}_{counter}{ext}"):
+            counter += 1
+        dst = f"{base}_{counter}{ext}"
+    shutil.move(src, dst)
+    
 # ==============================
 # LOAD FILES
 # ==============================
@@ -77,26 +86,27 @@ def extract_code(name):
         if match:
             raw = match.group(0)
 
-            # Normalize
-            code_extract = raw.upper()
-            code_extract = re.sub(r'\s+', '', code_extract)
-            code_extract = code_extract.replace('_', '-')
+            raw = raw.upper()
+            raw = re.sub(r'\s+', '', raw)
+            raw = raw.replace('_', '-')
 
-            # ===== FC2 SPECIAL HANDLING =====
+            # ===== FC2 HANDLING =====
             fc2_ppv = re.search(r'FC2[-_\s]*PPV[-_\s]*(\d+)', raw, re.I)
             fc2_plain = re.search(r'FC2[-_\s]*(\d+)', raw, re.I)
 
             if fc2_ppv:
-                code = f"FC2-PPV-{fc2_ppv.group(1)}"
-            elif fc2_plain:
-                code = f"FC2-PPV-{fc2_plain.group(1)}"
-            else:
-                code = code_extract
+                return f"FC2-PPV-{fc2_ppv.group(1)}"
+            if fc2_plain:
+                return f"FC2-PPV-{fc2_plain.group(1)}"
 
-            # Rapihin dash
-            code = re.sub(r'-+', '-', code).strip('-')
+            # ===== NORMAL PREFIX-NUMBER FIX =====
+            m = re.match(r'^([A-Z]+)(\d+)$', raw)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}"
 
-            return code
+            # kalau sudah ada dash
+            raw = re.sub(r'-+', '-', raw).strip('-')
+            return raw
 
     return ""
 
@@ -104,8 +114,8 @@ def extract_code(name):
 def extract_studio(name):
     lowered = name.lower()
     for author in author_list:
-        if author in lowered:
-            return author.title()
+        if author.lower() in lowered:
+            return author.upper()
     return ""
 
 def enforce_keywords(name):
@@ -122,6 +132,7 @@ def build_name(filename):
     name, ext = os.path.splitext(filename)
 
     name = remove_domains(name)
+    name = re.sub(r'(?i)ne\s*k\s*o\s*poi', '', name)
     name = clean_symbols(name)
 
     code = extract_code(name)
@@ -130,9 +141,15 @@ def build_name(filename):
     uncen = extract_uncen(name)
 
     if code:
-        escaped = re.escape(code)
-        flexible = escaped.replace(r'\-', r'[-_\s]*')
-        name = re.sub(r'(?i)\b' + flexible + r'\b', '', name)
+        # hapus semua variasi kode fleksibel
+        flexible = code.replace('-', r'[-_\s]*')
+        name = re.sub(rf'(?i)\b{flexible}\b', '', name)
+
+    # khusus FC2 → hapus angka mentahnya juga
+    if code and code.startswith("FC2-PPV-"):
+        number = code.split("-")[-1]
+        name = re.sub(rf'(?i)\b{number}\b', '', name)
+
 
     if studio:
         name = re.sub(re.escape(studio), '', name, flags=re.I)
@@ -191,7 +208,8 @@ title_null_count = 0
 real_count = 0
 lainnya_count = 0
 duplicate_move_count = 0
-
+tetap_count = 0
+    
 # ==============================
 # MAIN LOOP
 # ==============================
@@ -200,13 +218,60 @@ for file in os.listdir(BASE_DIR):
     if not any(file.lower().endswith(ext) for ext in VIDEO_EXT):
         continue
 
+    lower = file.lower()
     old_path = os.path.join(BASE_DIR, file)
+
+    is_downloader = any(x in lower for x in [
+        "snapsave",
+        "fbdownload",
+        "fdownloader",
+        "savefrom",
+        "fbcdn"
+    ])
+
+    clean = re.sub(r'[\s_\-\.]', '', lower)
+    is_nekopoi = any(x in clean for x in ["nekopoi", "nekpoi"])
+    
+    # PRE-CHECK CODE / RESOLUSI DULU
+    temp_name = remove_domains(os.path.splitext(file)[0])
+    temp_name = clean_symbols(temp_name)
+    temp_code = extract_code(temp_name)
+    temp_reso = extract_resolution(temp_name)
+    temp_conf = temp_reso or temp_code
+
+    # ==============================
+    # HARD BYPASS DOWNLOADER
+    # ==============================
+    if is_downloader:
+        destination = os.path.join(lainnya_folder, file)
+        print(f"[DOWNLOADER] {file} -> Lainnya/")
+        lainnya_count += 1
+
+        if not DRY_RUN:
+            safe_move(old_path, destination)
+        continue
+
+    # ==============================
+    # HARD BYPASS NON NEKOPOI
+    # ==============================
+    if not is_nekopoi and not temp_conf:
+        destination = os.path.join(lainnya_folder, file)
+        print(f"[MOVED NON-NEKOPOI] {file} -> Lainnya/")
+        lainnya_count += 1
+
+        if not DRY_RUN:
+            safe_move(old_path, destination)
+        continue
+
+    # ==============================
+    # NORMAL FLOW
+    # ==============================
+
     new_name, code = build_name(file)
     new_path = os.path.join(BASE_DIR, new_name)
 
     title_key = new_name.lower().strip()
 
-    # === TITLE NULL CHECK ===
     name_only = os.path.splitext(new_name)[0].strip()
     if not name_only:
         print(f"[TITLE NULL] {file}")
@@ -231,28 +296,19 @@ for file in os.listdir(BASE_DIR):
         print(f"[DUPLICATE] {new_name} -> _DUPLICATE/")
         duplicate_move_count += 1
         if not DRY_RUN:
-            shutil.move(new_path, destination)
+            safe_move(new_path, destination)
 
     elif code:
         destination = os.path.join(real_folder, new_name)
         print(f"[MOVED] {new_name} -> Real/")
         real_count += 1
         if not DRY_RUN:
-            shutil.move(new_path, destination)
+            safe_move(new_path, destination)
 
     else:
-        lower = file.lower()
-        if "snapsave" in lower or "fbdownload" in lower:
-            destination = os.path.join(lainnya_folder, new_name)
-            print(f"[MOVED] {new_name} -> Lainnya/")
-            lainnya_count += 1
-            if not DRY_RUN:
-                shutil.move(new_path, destination)
-        else:
-            lainnya_count += 1
+        tetap_count += 1
 
     seen_titles.add(title_key)
-
 
 # ==============================
 # SAVE REGISTRY
@@ -277,4 +333,5 @@ print("\n===========  OUTPUT  ===========")
 print(f"✔ Real         : {real_count}")
 print(f"⇰ Lainnya      : {lainnya_count}")
 print(f"⇲ Duplicate    : {duplicate_move_count}")
+print(f"• Tetap        : {tetap_count}")
 print("=================================")
