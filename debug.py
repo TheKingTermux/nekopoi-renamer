@@ -12,7 +12,7 @@ AUTHOR_FILE = "author.txt"
 KEYWORD_FILE = "keyword.txt"
 TITLE_REGISTRY = "judul.txt"
 
-DRY_RUN = False  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
+DRY_RUN = True  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
 
 def safe_move(src, dst):
     if os.path.exists(dst):
@@ -28,20 +28,31 @@ def safe_move(src, dst):
 # ==============================
 
 author_list = []
+author_map = {}
+
 if os.path.exists(AUTHOR_FILE):
     with open(AUTHOR_FILE, "r", encoding="utf-8") as f:
-        author_list = [line.strip().lower() for line in f if line.strip()]
+        for line in f:
+            clean = line.strip()
+            if clean:
+                author_list.append(clean.lower())
+                author_map[clean.lower()] = clean
 
 keyword_list = []
 if os.path.exists(KEYWORD_FILE):
     with open(KEYWORD_FILE, "r", encoding="utf-8") as f:
         keyword_list = [line.strip() for line in f if line.strip()]
 
-seen_titles = set()
+seen_titles_lower = set()
+existing_titles = []
+
 if os.path.exists(TITLE_REGISTRY):
     with open(TITLE_REGISTRY, "r", encoding="utf-8") as f:
         for line in f:
-            seen_titles.add(line.strip().lower())
+            clean_line = line.strip()
+            if clean_line:
+                existing_titles.append(clean_line)
+                seen_titles_lower.add(clean_line.lower())
 
 # ==============================
 # CLEANING FUNCTIONS
@@ -113,14 +124,14 @@ def extract_code(name):
 
 def extract_studio(name):
     lowered = name.lower()
-    for author in author_list:
-        if author.lower() in lowered:
-            return author.upper()
+    for author_lower in author_list:
+        if author_lower in lowered:
+            return author_map[author_lower]
     return ""
 
 def enforce_keywords(name):
     for keyword in keyword_list:
-        pattern = re.compile(re.escape(keyword), re.I)
+        pattern = re.compile(rf'\b{re.escape(keyword)}\b', re.I)
         name = pattern.sub(keyword, name)
     return name
 
@@ -270,7 +281,8 @@ for file in os.listdir(BASE_DIR):
     new_name, code = build_name(file)
     new_path = os.path.join(BASE_DIR, new_name)
 
-    title_key = new_name.lower().strip()
+    title_key = new_name.strip()
+    title_key_lower = title_key.lower()
 
     name_only = os.path.splitext(new_name)[0].strip()
     if not name_only:
@@ -278,7 +290,7 @@ for file in os.listdir(BASE_DIR):
         title_null_count += 1
         continue
 
-    is_duplicate = title_key in seen_titles
+    is_duplicate = title_key_lower in seen_titles_lower
 
     # === RENAME ===
     if new_name != file:
@@ -308,15 +320,19 @@ for file in os.listdir(BASE_DIR):
     else:
         tetap_count += 1
 
-    seen_titles.add(title_key)
+    if title_key_lower not in seen_titles_lower:
+        existing_titles.append(title_key)
+        seen_titles_lower.add(title_key_lower)
 
 # ==============================
 # SAVE REGISTRY
 # ==============================
 
 if not DRY_RUN:
+    sorted_titles = sorted(existing_titles, key=lambda x: x.lower())
+
     with open(TITLE_REGISTRY, "w", encoding="utf-8") as f:
-        for title in sorted(seen_titles):
+        for title in sorted_titles:
             f.write(title + "\n")
 
 # ==============================
