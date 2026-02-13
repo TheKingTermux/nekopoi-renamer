@@ -28,3 +28,6 @@ Consome
 Suuru
 CANずめ
 DoriDoriko
+BFuzz
+Maplestar
+Bewyx
