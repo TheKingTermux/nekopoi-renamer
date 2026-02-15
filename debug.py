@@ -12,7 +12,7 @@ AUTHOR_FILE = "author.txt"
 KEYWORD_FILE = "keyword.txt"
 TITLE_REGISTRY = "judul.txt"
 
-DRY_RUN = True  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
+DRY_RUN = False  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
 
 def safe_move(src, dst):
     if os.path.exists(dst):
@@ -62,16 +62,20 @@ def clean_symbols(name):
     name = re.sub(r'[\[\]{}()]', ' ', name)
     name = re.sub(r'[_]+', ' ', name)
     name = re.sub(r'\s{2,}', ' ', name)
+    name = re.sub(r'\s*\.\s*', ' ', name)
+    name = re.sub(r'-{2,}.*$', '', name)
     return name.strip(" -").strip()
 
 def remove_domains(name):
     name = re.sub(r'https?://\S+', '', name, flags=re.I)
     name = re.sub(r'www\.\S+', '', name, flags=re.I)
+    name = re.sub(r'(?i)nekopoi[-_]?care', '', name)
+    name = re.sub(r'(?i)\bcare\b', '', name)
     name = re.sub(r'\b[a-z0-9-]+\.(care|fun|tv|id|io|xyz|site|club|live|win|net|org|cc|me|pw|biz|info|asia|us|uk|pro|lol|trade|host|band|top|cam|red|pink|sexy|ninja|download|stream|watch|video|porn|sex|adult|cyou)\b', '', name, flags=re.I)
     return name
 
 def extract_resolution(name):
-    m = re.search(r'\b(360|480|720|1080|1440|2160)p?\b', name, re.I)
+    m = re.search(r'(360|480|720|1080|1440|2160)p?\b', name, re.I)
     return m.group(0).upper() if m else ""
 
 def extract_uncen(name):
@@ -135,6 +139,28 @@ def enforce_keywords(name):
         name = pattern.sub(keyword, name)
     return name
 
+def smart_title_case(text):
+    def fix_word(w):
+        # pisahkan simbol di depan kata (misal ~shadow)
+        m = re.match(r'^([^A-Za-z0-9]*)(.*)$', w)
+        if not m:
+            return w
+
+        prefix = m.group(1)
+        core = m.group(2)
+
+        if not core:
+            return w
+
+        if core.isupper():
+            return prefix + core
+        if any(c.isdigit() for c in core):
+            return prefix + core
+
+        return prefix + core.capitalize()
+
+    return " ".join(fix_word(w) for w in text.split())
+
 # ==============================
 # BUILD NAME
 # ==============================
@@ -145,6 +171,10 @@ def build_name(filename):
     name = remove_domains(name)
     name = re.sub(r'(?i)ne\s*k\s*o\s*poi', '', name)
     name = clean_symbols(name)
+    
+    # slug detection (kalau dash terlalu banyak → kemungkinan dari URL)
+    if name.count("-") >= 3:
+        name = name.replace("-", " ")
 
     code = extract_code(name)
     studio = extract_studio(name)
@@ -165,14 +195,33 @@ def build_name(filename):
     if studio:
         name = re.sub(re.escape(studio), '', name, flags=re.I)
 
-    name = re.sub(r'\b(360|480|720|1080|1440|2160)p?\b', '', name, flags=re.I)
+    name = re.sub(
+        r'(\d+)?(360|480|720|1080|1440|2160)p?\b',
+        lambda m: m.group(1) if m.group(1) else '',
+        name,
+        flags=re.I
+    )
     name = re.sub(r'\b(U|UC|UNCEN|UNCENSORED)\b', '', name, flags=re.I)
 
     name = clean_symbols(name)
-    name = enforce_keywords(name)
-    name = clean_symbols(name)
+    name = name.replace("–", "-").replace("—", "-")
+    
+    # ===== Extract episode number di akhir =====
+    episode = ""
 
-    parts = []
+    # Jangan tangkap angka kalau sebelumnya ada kata Season
+    if not re.search(r'Season\s+\d{1,2}$', name, re.IGNORECASE):
+        m_ep = re.search(r'(?:-|_)?\s*(\d{1,2})$', name)
+        if m_ep:
+            episode = m_ep.group(1).zfill(2)
+            name = re.sub(r'(?:-|_)?\s*\d{1,2}$', '', name).strip()
+
+        
+    # hapus simbol gantung di akhir
+    name = re.sub(r'[-\s]+$', '', name).strip()
+    name = re.sub(r'\s-\s-', ' - ', name)
+
+    parts = []  
 
     if code:
         parts.append(code)
@@ -181,7 +230,12 @@ def build_name(filename):
         parts.append(studio)
 
     if name:
+        name = smart_title_case(name)
+        name = enforce_keywords(name)
         parts.append(name)
+        
+    if episode:
+        parts.append(episode)
 
     final = " - ".join(parts).strip()
 
