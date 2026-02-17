@@ -120,8 +120,72 @@ Maka file akan:
 
 ## ▶️ Cara Pakai
 
-1️⃣ Jalankan `cleaner.bat` dan skrip akan otomatis rename semua file yang berada di folder yang sama
+Siap. Kita tambahin section baru buat jelasin launcher + auto install Python biar README lu makin legit dan keliatan profesional 🔥
 
+Gue tambahin bagian **Launcher & Auto Install Python** + update Cara Pakai dikit.
+
+---
+
+## 🧠 Auto Install Python (Smart Launcher)
+
+Mulai versi terbaru, `cleaner.bat` sudah dilengkapi **auto dependency checker**.
+
+Jika Python belum terinstall di sistem:
+
+* 🔍 Script akan mendeteksi otomatis
+* 🖥️ Auto detect 32-bit / 64-bit Windows
+* ⬇️ Mengunduh installer resmi dari python.org
+* ⚙️ Silent install (tanpa pop-up)
+* 🧹 Installer otomatis dihapus setelah selesai
+* ▶️ Script langsung berjalan
+
+📌 File installer hanya disimpan sementara di folder script dan akan otomatis dihapus.
+📌 Tidak ada file lain yang dihapus selain installer Python tersebut.
+
+---
+
+## 🏗️ Arsitektur yang Didukung
+
+* ✅ Windows 32-bit
+* ✅ Windows 64-bit
+* 🔄 Otomatis menyesuaikan versi installer
+
+---
+
+## 🛠️ Menu Launcher
+
+Saat menjalankan `cleaner.bat`, tersedia menu:
+
+1️⃣ Main Script (Python)
+2️⃣ Cleaner Mode (Python)
+3️⃣ Deprecated PowerShell
+4️⃣ Keluar
+5️⃣ Install Python Manual
+
+💡 Menu 1 & 2 sudah otomatis melakukan pengecekan Python, jadi biasanya tidak perlu memilih menu 5.
+
+---
+
+## 🔐 Keamanan
+
+Script ini:
+
+* ❌ Tidak menghapus file video
+* ❌ Tidak menghapus folder lain
+* ❌ Tidak mengubah isi file
+* ✅ Hanya rename nama file
+* ✅ Memindahkan file duplikat ke `_DUPLICATE`
+* ✅ Menghapus **hanya** file installer Python sementara
+
+---
+
+## ⚡ Dependency Management
+
+Launcher bertindak sebagai:
+
+> Lightweight bootstrapper + dependency manager
+
+Artinya pengguna awam pun bisa langsung menjalankan script tanpa perlu install Python manual terlebih dahulu.
 
 ---
 
@@ -138,4 +202,3 @@ Maka file akan:
 🧠 Hidup lebih tenang  
 
 **Happy renaming! 🔥**
-
