@@ -120,13 +120,7 @@ Maka file akan:
 
 ## ▶️ Cara Pakai
 
-Siap. Kita tambahin section baru buat jelasin launcher + auto install Python biar README lu makin legit dan keliatan profesional 🔥
-
-Gue tambahin bagian **Launcher & Auto Install Python** + update Cara Pakai dikit.
-
----
-
-## 🧠 Auto Install Python (Smart Launcher)
+### 🧠 Auto Install Python (Smart Launcher)
 
 Mulai versi terbaru, `cleaner.bat` sudah dilengkapi **auto dependency checker**.
 
