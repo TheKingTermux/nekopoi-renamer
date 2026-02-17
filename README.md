@@ -22,6 +22,8 @@ Cocok buat koleksi gede biar **rapi, konsisten, dan bebas duplikat**. Hidup jadi
 - Global via `judul.txt`
 
 📦 File duplikat otomatis dipindah ke folder `_DUPLICATE`  
+📦 File JAV / Live Action otomatis dipindah ke folder `Real`  
+📦 File Selain Nekopoi otomatis dipindah ke folder `Lainnya`  
 📝 Judul hasil rename otomatis disimpan ke `judul.txt`  
 🔤 `judul.txt` otomatis di-sort alphabetical
 
