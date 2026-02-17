@@ -80,7 +80,7 @@ def extract_resolution(name):
 
 def extract_uncen(name):
     if re.search(r'\b(U|UC|UNCEN|UNCENSORED)\b', name, re.I):
-        return "UNCEN"
+        return "UNCENSORED"
     return ""
 
 def extract_code(name):
@@ -211,7 +211,7 @@ def build_name(filename):
 
     # Jangan tangkap angka kalau sebelumnya ada kata Season
     if not re.search(r'Season\s+\d{1,2}$', name, re.IGNORECASE):
-        m_ep = re.search(r'(?:-|_)?\s*(\d{1,2})$', name)
+        m_ep = re.search(r'(?<![A-Za-z0-9])(\d{1,2})$', name)
         if m_ep:
             episode = m_ep.group(1).zfill(2)
             name = re.sub(r'(?:-|_)?\s*\d{1,2}$', '', name).strip()
@@ -335,7 +335,8 @@ for file in os.listdir(BASE_DIR):
     new_name, code = build_name(file)
     new_path = os.path.join(BASE_DIR, new_name)
 
-    title_key = new_name.strip()
+    title_without_ext = os.path.splitext(new_name)[0].strip()
+    title_key = title_without_ext
     title_key_lower = title_key.lower()
 
     name_only = os.path.splitext(new_name)[0].strip()
