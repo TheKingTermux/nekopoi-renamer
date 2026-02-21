@@ -127,9 +127,9 @@ def extract_code(name):
 
 
 def extract_studio(name):
-    lowered = name.lower()
     for author_lower in author_list:
-        if author_lower in lowered:
+        pattern = re.compile(rf'\b{re.escape(author_lower)}\b', re.I)
+        if pattern.search(name):
             return author_map[author_lower]
     return ""
 
@@ -296,6 +296,7 @@ for file in os.listdir(BASE_DIR):
 
     clean = re.sub(r'[\s_\-\.]', '', lower)
     is_nekopoi = any(x in clean for x in ["nekopoi", "nekpoi"])
+    has_hashtag = "#" in file
     
     # PRE-CHECK CODE / RESOLUSI DULU
     temp_name = remove_domains(os.path.splitext(file)[0])
@@ -319,7 +320,7 @@ for file in os.listdir(BASE_DIR):
     # ==============================
     # HARD BYPASS NON NEKOPOI
     # ==============================
-    if not is_nekopoi and not temp_conf:
+    if not temp_conf and (not is_nekopoi or has_hashtag):
         destination = os.path.join(lainnya_folder, file)
         print(f"[MOVED NON-NEKOPOI] {file} -> Lainnya/")
         lainnya_count += 1
