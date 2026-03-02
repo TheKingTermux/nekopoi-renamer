@@ -7,17 +7,13 @@ import shutil
 # ==============================
 
 VIDEO_EXT = [".mp4", ".mkv", ".mov", ".webm"]
+NTR_KEYWORDS = ["ntr", "netorare", "netori", "netorase","cheating", "cuckold", "cuck", "affair"]
 BASE_DIR = os.getcwd()
 AUTHOR_FILE = "author.txt"
 KEYWORD_FILE = "keyword.txt"
 TITLE_REGISTRY = "judul.txt"
 
 DRY_RUN = False  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
-
-NTR_KEYWORDS = [
-    "ntr", "netorare", "netori", "netorase",
-    "cheating", "cuckold", "cuck", "affair"
-]
 
 def safe_move(src, dst):
     if os.path.exists(dst):
@@ -89,6 +85,8 @@ def extract_uncen(name):
     return ""
 
 def extract_code(name):
+    name = re.sub(r'#\s*[A-Z0-9]+', '', name)
+    name = re.sub(r'#', '', name)
     patterns = [
         r'(?i)FC2[-_\s]*PPV[-_\s]*(\d{3,9})',
         r'(?i)FC2[-_\s]*(\d{3,9})',
@@ -272,7 +270,7 @@ def build_name(filename):
     
     # Dimension Prefix
     if dim:
-        suffix.append(dim)
+        parts.append(dim)
 
     # Title Prefix
     if name:
@@ -348,6 +346,7 @@ for file in os.listdir(BASE_DIR):
 
     clean = re.sub(r'[\s_\-\.]', '', lower)
     is_nekopoi = any(x in clean for x in ["nekopoi", "nekpoi"])
+    
     has_hashtag = "#" in file
     
     # PRE-CHECK CODE / RESOLUSI DULU
@@ -356,6 +355,18 @@ for file in os.listdir(BASE_DIR):
     temp_code = extract_code(temp_name)
     temp_reso = extract_resolution(temp_name)
     temp_conf = temp_reso or temp_code
+    
+    # ==============================
+    # HARD BYPASS HASHTAG
+    # ==============================
+    if has_hashtag:
+        destination = os.path.join(lainnya_folder, file)
+        print(f"[HASHTAG BYPASS] {file} -> Lainnya/")
+        lainnya_count += 1
+
+        if not DRY_RUN:
+            safe_move(old_path, destination)
+        continue
 
     # ==============================
     # HARD BYPASS DOWNLOADER
@@ -372,7 +383,7 @@ for file in os.listdir(BASE_DIR):
     # ==============================
     # HARD BYPASS NON NEKOPOI
     # ==============================
-    if not temp_conf and (not is_nekopoi or has_hashtag):
+    if not temp_conf and not is_nekopoi:
         destination = os.path.join(lainnya_folder, file)
         print(f"[MOVED NON-NEKOPOI] {file} -> Lainnya/")
         lainnya_count += 1
