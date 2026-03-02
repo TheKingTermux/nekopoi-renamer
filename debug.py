@@ -14,6 +14,11 @@ TITLE_REGISTRY = "judul.txt"
 
 DRY_RUN = False  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
 
+NTR_KEYWORDS = [
+    "ntr", "netorare", "netori", "netorase",
+    "cheating", "cuckold", "cuck", "affair"
+]
+
 def safe_move(src, dst):
     if os.path.exists(dst):
         base, ext = os.path.splitext(dst)
@@ -125,7 +130,6 @@ def extract_code(name):
 
     return ""
 
-
 def extract_studio(name):
     for author_lower in author_list:
         pattern = re.compile(rf'\b{re.escape(author_lower)}\b', re.I)
@@ -136,8 +140,17 @@ def extract_studio(name):
     if by_match:
         by_studio = by_match.group(1).strip()
         if len(by_studio) > 1:
+            # Auto-Append ke author.txt Kalau Belum Ada
+            by_studio_lower = by_studio.lower()
+            if by_studio_lower not in author_list:
+                print(f"[AUTO-ADD AUTHOR] {by_studio} belum ada di author.txt → ditambahkan!")
+                with open(AUTHOR_FILE, "a", encoding="utf-8") as f:
+                    f.write(by_studio + "\n")  # tambah dengan case asli
+                
+                # Update list & map di memory juga (biar langsung kebaca di run ini)
+                author_list.append(by_studio_lower)
+                author_map[by_studio_lower] = by_studio
             return by_studio
-        
     return ""
 
 def enforce_keywords(name):
@@ -168,10 +181,9 @@ def smart_title_case(text):
 
     return " ".join(fix_word(w) for w in text.split())
 
-NTR_KEYWORDS = [
-    "ntr", "netorare", "netori", "netorase",
-    "cheating", "cuckold", "cuck", "affair"
-]
+def extract_dimension(name):
+    m = re.search(r'(?i)\b(LIVE2D|L2D|2D|3D)\b', name)
+    return m.group(0).upper() if m else ""
 
 # ==============================
 # BUILD NAME
@@ -199,6 +211,7 @@ def build_name(filename):
     studio = extract_studio(name)
     reso = extract_resolution(name)
     uncen = extract_uncen(name)
+    dim = extract_dimension(name)
 
     if code:
         # hapus semua variasi kode fleksibel
@@ -222,6 +235,9 @@ def build_name(filename):
         flags=re.I
     )
     name = re.sub(r'\b(U|UC|UNCEN|UNCENSORED)\b', '', name, flags=re.I)
+    
+    if dim:
+        name = re.sub(rf'\b{re.escape(dim)}\b', '', name, flags=re.I)
 
     name = clean_symbols(name)
     name = name.replace("–", "-").replace("—", "-")
@@ -253,6 +269,10 @@ def build_name(filename):
     # Studio Prefix
     if studio and studio.lower() not in name.lower():
         parts.append(studio)
+    
+    # Dimension Prefix
+    if dim:
+        suffix.append(dim)
 
     # Title Prefix
     if name:
