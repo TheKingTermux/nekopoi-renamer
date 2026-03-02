@@ -131,6 +131,13 @@ def extract_studio(name):
         pattern = re.compile(rf'\b{re.escape(author_lower)}\b', re.I)
         if pattern.search(name):
             return author_map[author_lower]
+        
+    by_match = re.search(r'(?i)\bby\s+([^\[\]\(\)\-\_\.\,\:\;]+?)(?=\s*[\[\]\(\)\-\_\.\,\:\;]|$)', name)
+    if by_match:
+        by_studio = by_match.group(1).strip()
+        if len(by_studio) > 1:
+            return by_studio
+        
     return ""
 
 def enforce_keywords(name):
@@ -161,12 +168,24 @@ def smart_title_case(text):
 
     return " ".join(fix_word(w) for w in text.split())
 
+NTR_KEYWORDS = [
+    "ntr", "netorare", "netori", "netorase",
+    "cheating", "cuckold", "cuck", "affair"
+]
+
 # ==============================
 # BUILD NAME
 # ==============================
 
 def build_name(filename):
     name, ext = os.path.splitext(filename)
+    original_name = name # simpan original untuk deteksi NTR
+
+    # Deteksi NTR Dari Original Filename
+    has_ntr = any(
+        re.search(rf'\b{re.escape(keyword_ntr)}\b', original_name.lower())
+        for keyword_ntr in NTR_KEYWORDS
+    )
 
     name = remove_domains(name)
     name = re.sub(r'(?i)ne\s*k\s*o\s*poi', '', name)
@@ -191,9 +210,10 @@ def build_name(filename):
         number = code.split("-")[-1]
         name = re.sub(rf'(?i)\b{number}\b', '', name)
 
-
     if studio:
         name = re.sub(re.escape(studio), '', name, flags=re.I)
+        name = re.sub(r'(?i)\bby\s*', '', name)  # hapus "By ", "by ", "BY " dll
+        name = name.strip()
 
     name = re.sub(
         r'(\d+)?(360|480|720|1080|1440|2160)p?\b',
@@ -216,40 +236,52 @@ def build_name(filename):
             episode = m_ep.group(1).zfill(2)
             name = re.sub(r'(?:-|_)?\s*\d{1,2}$', '', name).strip()
 
-        
     # hapus simbol gantung di akhir
     name = re.sub(r'[-\s]+$', '', name).strip()
     name = re.sub(r'\s-\s-', ' - ', name)
 
     parts = []  
+    
+    # NTR Prefix
+    if has_ntr:
+        parts.append("NTR")
 
+    # Code Prefix
     if code:
         parts.append(code)
 
+    # Studio Prefix
     if studio and studio.lower() not in name.lower():
         parts.append(studio)
 
+    # Title Prefix
     if name:
         name = smart_title_case(name)
         name = enforce_keywords(name)
         parts.append(name)
         
+    # Episode Prefix (karena biasanya di akhir, jadi dipasang paling belakang)
     if episode:
         parts.append(episode)
 
+    # Gabungkan semua bagian dengan " - "
     final = " - ".join(parts).strip()
 
+    # Tambahkan resolusi dan uncensored di akhir
     suffix = []
     if uncen:
         suffix.append(uncen)
     if reso:
         suffix.append(reso)
 
+    # Kalau ada suffix, tambahkan dengan spasi
     if suffix:
         final = f"{final} {' '.join(suffix)}"
 
+    # Bersihkan spasi ganda yang mungkin muncul
     final = re.sub(r'\s{2,}', ' ', final).strip()
 
+    # Tambahkan ekstensi kembali
     return final + ext, code
 
 # ==============================
