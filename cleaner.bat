@@ -28,6 +28,8 @@ goto MainMenu
 cls
 call :CheckPython
 cls
+call :InstallReq
+cls
 python debug.py
 pause
 echo -------------------------
@@ -153,3 +155,14 @@ if exist "%PYTHON_INSTALLER%" (
 )
 
 goto :eof
+
+:InstallReq 
+echo Checking dependencies... 
+
+pip show colorama >nul 2>&1 
+if errorlevel 1 ( 
+    echo Installing colorama... 
+    pip install colorama 
+) 
+
+echo Done!
