@@ -1,3 +1,5 @@
+from colorama import init
+init()
 import os
 import re
 import shutil
@@ -13,12 +15,27 @@ AUTHOR_FILE = "author.txt"
 KEYWORD_FILE = "keyword.txt"
 TITLE_REGISTRY = "judul.txt"
 
-DRY_RUN = False  # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
+# ANSI color codes untuk output yang lebih menarik dan mudah dibaca di terminal, terutama untuk membedakan antara berbagai jenis pesan seperti error, warning, info, dll. Ini akan membantu meningkatkan pengalaman pengguna saat menjalankan script ini di terminal, dengan memberikan visual cues yang jelas untuk setiap jenis pesan yang muncul.
+class C:
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    RESET = "\033[0m"
+
+# Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
+DRY_RUN = False
 
 # Daftar keyword NTR yang akan dideteksi di filename, termasuk variasi dan sinonimnya, supaya bisa langsung ditangkap sebagai indikasi NTR dan ditambahkan prefix "NTR" di title. Ini akan membantu memastikan kalau ada file dengan tema NTR, bisa langsung dikenali dan diproses dengan benar.
 NTR_KEYWORDS = [
-    "ntr", "netorare", "netori", "netorase", "cheating", "cuckold", "cuck", "affair", "cuckolded", "cucked", "cuckolding", "cuckoldry", "adultery", "infidelity", "betrayal", "unfaithful", "side piece", "stolen wife", "wife sharing", "partner sharing", "stolen", "sharing", "shared", "nettori", "nettorare", "nettorase"
+    "ntr", "netorare", "netori", "netorase", "cheating", "cuckold", "cuck", "affair", "cuckolded", "cucked", "cuckolding", "cuckoldry", "adultery", "infidelity", "betrayal", "unfaithful", "side piece", "stolen wife", "wife sharing", "partner sharing", "stolen", "sharing", "shared", "nettori", "nettorare", "nettorase", "istri orang", "suami orang", "pasangan orang", "selingkuh", "selingkuhan", "perselingkuhan", "tidak setia", "pihak ketiga", "istri dicuri", "berbagi istri", "berbagi pasangan"
 ]
+
+# Daftar gelar kehormatan Jepang yang sering muncul di filename, supaya bisa dikenali dan diproses dengan benar, terutama kalau ada nama karakter yang disertai dengan gelar kehormatan ini, kita bisa langsung tangkap dan pisahkan dengan benar di title. Ini akan membantu memastikan nama karakter yang muncul di title bisa lebih lengkap dan akurat, terutama kalau ada kasus-kasus di mana gelar kehormatan ini jadi bagian penting dari identitas karakter tersebut.
+japanese_honorific_title = [
+    "chan", "san", "kun", "sama", "sensei", "senpai"
+    ]
 
 # Fungsi untuk memindahkan file dengan aman, memastikan kalau ada file dengan nama yang sama di tujuan, file yang dipindahkan gak akan menimpa file yang sudah ada, tapi akan diberi suffix angka untuk membedakan. Ini akan membantu mencegah kehilangan data akibat penimpaan file, terutama kalau ada kasus duplikat yang gak terdeteksi sebelumnya.
 def safe_move(src, dst):
@@ -64,6 +81,20 @@ if os.path.exists(TITLE_REGISTRY):
             if clean_line:
                 existing_titles.append(clean_line)
                 seen_titles_lower.add(clean_line.lower())
+                
+# ==============================
+# STATS
+# ==============================
+
+renamed_count = 0
+skip_clean_count = 0
+title_null_count = 0
+real_count = 0
+lainnya_count = 0
+duplicate_move_count = 0
+tetap_count = 0
+author_count = 0
+english_count = 0
 
 # ==============================
 # CLEANING FUNCTIONS
@@ -109,7 +140,7 @@ def extract_code(name):
         r'(?i)(CN)[-_\s]?(\d{6,12})',
         r'(?i)(CUS)[-_\s]?(\d{3,4})(-\d+)?',
         r'(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
-        r'(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|CN|MD|HEYZO|SIRO|1PON|CARIB|FPRE|CUS|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR|546EROFV|JD|MT|420STH|COSH|420HHL|BOBB|DVRT|EYAN|29ID)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
+        r'(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|CN|MD|HEYZO|SIRO|1PON|CARIB|FPRE|CUS|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR|546EROFV|JD|MT|420STH|COSH|420HHL|BOBB|DVRT|EYAN|29ID|BOINBB|LY|OS|XSJYH)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
         r'(?i)\b([A-Z0-9]{3,5})[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
         r'(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)'
     ]
@@ -133,24 +164,25 @@ def extract_code(name):
                     elif re.match(r'^[A-Z0-9]+$', g2) and g1.isdigit():
                         prefix, number = g2.upper(), g1
                     else:
-                        # skip kalau ambiguous
+                        # skip kalau ambigu atau gak jelas mana prefix dan mana number, untuk menghindari kesalahan deteksi yang bisa bikin kode jadi kacau. Ini akan membantu memastikan kode yang dihasilkan tetap akurat dan konsisten, terutama kalau ada kasus-kasus yang agak rumit atau gak standar di filename.
                         continue
 
                 suffix = match.group(3) if match.lastindex >= 3 else None
 
+                # Format kode dengan benar, pastikan prefix di depan dan number di belakang, dan tambahkan suffix kalau ada. Ini akan membantu memastikan kode yang dihasilkan selalu dalam format yang konsisten, dan menghindari kasus-kasus ketuker antara prefix dan number yang sering terjadi di filename.
                 code = f"{prefix}-{number}"
                 if suffix:
                     code += f"-{suffix.upper()}"
 
-                # 🔥 SAFETY FIX (anti kebalik 2.0)
+                # SAFETY FIX (anti kebalik 2.0)
                 m_fix = re.match(r'^(\d+)-([A-Z0-9]+)$', code)
                 if m_fix:
                     code = f"{m_fix.group(2)}-{m_fix.group(1)}"
 
                 return code
 
+            # kalau pattern cuma punya satu group, anggap itu sebagai raw code yang perlu dibersihkan dulu sebelum diproses lebih lanjut, untuk memastikan formatnya benar. Ini akan membantu menangkap kode-kode yang mungkin muncul dalam format yang agak kacau di filename, tapi sebenarnya bisa dibersihkan dan diformat dengan benar untuk dijadikan kode yang valid.
             raw = match.group(0)
-
             raw = raw.upper()
             raw = re.sub(r'\s+', '', raw)
             raw = raw.replace('_', '-')
@@ -177,6 +209,7 @@ def extract_code(name):
 
 # Fungsi untuk mengekstrak nama studio dengan prioritas dari author.txt dulu, baru dari pola "by XXX" di filename. Juga termasuk auto-add ke author.txt kalau nemu studio baru yang valid.
 def extract_studio(name):
+    global author_count
     # Prioritas 1: dari author list
     for author_lower in author_list:
         pattern = re.compile(rf'\b{re.escape(author_lower)}\b', re.I)
@@ -184,14 +217,15 @@ def extract_studio(name):
             return author_map[author_lower]
         
     # Prioritas 2: by XXX
-    by_match = re.search(
+    by_match = re.findall(
         r'(?i)\bby\s+([A-Za-z0-9][A-Za-z0-9\s&\'\-\.\(\)]+?)(?=\s+(?:\d{3,4}p?|U|UC|UNCEN|UNCENSORED|2D|3D|LIVE2D)\b|[\[\]\(\)]|$)',
         name
     )
     
     # Kalau ketemu pola "by XXX", lakukan cleanup dan validasi tambahan untuk memastikan ini benar-benar nama studio yang layak, bukan kata umum atau noise. Kalau valid, cek juga apakah sudah ada di author.txt, kalau belum, langsung auto-add ke author.txt supaya nanti bisa dikenali sebagai studio yang valid di file-file berikutnya tanpa harus restart script.
     if by_match:
-        by_studio = by_match.group(1).strip()
+        # Ambil yang terakhir kalau ada multiple "by XXX", karena biasanya yang terakhir itu yang paling relevan sebagai nama studio, sementara yang sebelumnya bisa jadi noise atau bagian dari title. Ini akan membantu memastikan nama studio yang diambil memang yang paling mungkin benar, terutama kalau ada kasus-kasus di mana ada beberapa "by XXX" di filename.
+        by_studio = by_match[-1].strip()
 
         # cleanup
         by_studio = re.sub(r'[\s_]+$', '', by_studio)
@@ -199,7 +233,7 @@ def extract_studio(name):
         by_studio = by_studio.strip(" -_()")
 
         # filter
-        BAD_WORDS = ["the", "a", "my", "your", "this", "that", "with", "from", "video", "uncensored", "episode"]
+        BAD_WORDS = ["the", "my", "your", "this", "that", "with", "from", "video", "uncensored", "episode"]
 
         # Validasi tambahan untuk memastikan ini benar-benar nama studio yang layak, bukan kata umum atau noise
         if (
@@ -212,12 +246,13 @@ def extract_studio(name):
 
             # Auto-add ke author.txt kalau belum ada di list, supaya nanti bisa dikenali sebagai studio yang valid di file-file berikutnya tanpa harus restart script. Ini akan membantu memperkaya database author.txt secara otomatis berdasarkan temuan di filename, tanpa harus repot-repot edit manual setiap kali nemu studio baru yang valid.
             if by_studio_lower not in author_list:
-                print(f"[AUTO-ADD AUTHOR] {by_studio} → tidak ada di author.txt → ditambahkan!")
+                print(f"{C.GREEN}[AUTO-ADD AUTHOR]{C.RESET} {by_studio} → tidak ada di author.txt → ditambahkan!")
 
                 if not DRY_RUN:
                     print(f"   ↳ ditambahkan ke author.txt")
                     with open(AUTHOR_FILE, "a", encoding="utf-8") as f:
                         f.write(by_studio + "\n")
+                        author_count += 1
                 else:
                     print(f"   ↳ (DRY RUN) tidak ditulis ke file")
 
@@ -239,6 +274,11 @@ def enforce_keywords(name):
 # Fungsi untuk title case yang lebih pintar, mempertahankan uppercase kalau memang sudah uppercase (misal kode atau akronim), dan tetap kapitalisasi normal untuk kata biasa
 def smart_title_case(text):
     def fix_word(w):
+        
+        # jangan ubah kalau ini adalah gelar kehormatan Jepang yang sering muncul di filename, supaya bisa dikenali dan diproses dengan benar, terutama kalau ada nama karakter yang disertai dengan gelar kehormatan ini, kita bisa langsung tangkap dan pisahkan dengan benar di title. Ini akan membantu memastikan nama karakter yang muncul di title bisa lebih lengkap dan akurat, terutama kalau ada kasus-kasus di mana gelar kehormatan ini jadi bagian penting dari identitas karakter tersebut.
+        if re.search(rf'-(?:{"|".join(japanese_honorific_title)})$', w, re.I):
+            return w
+        
         # pisahkan simbol di depan kata (misal ~shadow)
         m = re.match(r'^([^A-Za-z0-9]*)(.*)$', w)
         if not m:
@@ -264,43 +304,83 @@ def extract_dimension(name):
     m = re.search(r'(?i)\b(LIVE2D|L2D|2D|3D)\b', name)
     return m.group(0).upper() if m else ""
 
+# Fungsi untuk memperbaiki suffix Jepang yang sering muncul di filename, seperti "Mast_s" yang seharusnya "Mast's", dan juga handling untuk gelar kehormatan Jepang yang sering muncul di filename, supaya bisa dikenali dan diproses dengan benar, terutama kalau ada nama karakter yang disertai dengan gelar kehormatan ini, kita bisa langsung tangkap dan pisahkan dengan benar di title. Ini akan membantu memastikan nama karakter yang muncul di title bisa lebih lengkap dan akurat, terutama kalau ada kasus-kasus di mana gelar kehormatan ini jadi bagian penting dari identitas karakter tersebut.
+def fix_japanese_suffix(name):
+    # Fix Mast_s → Mast's
+    name = re.sub(r"\b([A-Za-z]+)_s\b", r"\1's", name)
+
+    # Loop honorific
+    for suffix in japanese_honorific_title:
+        name = re.sub(
+            rf'(?i)\b([A-Z][a-z]+)[-]{suffix}\b',
+            lambda m: f"{m.group(1)}-{suffix.capitalize()}",
+            name
+        )
+
+    return name
+
+# Fungsi untuk menghapus alias duplikat yang sering muncul di filename, seperti "リル (ReeL) ReeL" yang seharusnya cukup "リル (ReeL)", atau "ReeL ReeL" yang seharusnya cukup "ReeL". Ini akan membantu memastikan title yang dihasilkan lebih bersih dan rapi, tanpa duplikasi alias yang bisa bikin bingung atau terlihat kacau.
+def remove_duplicate_author(studio):
+    if not studio:
+        return studio
+
+    words = studio.split()
+    result = []
+
+    i = 0
+    while i < len(words):
+        current = words[i]
+        next_word = words[i + 1] if i + 1 < len(words) else None
+
+        if next_word and current.lower() == next_word.lower():
+            result.append(current)
+            i += 2
+        else:
+            result.append(current)
+            i += 1
+
+    return " ".join(result)
+
 # ==============================
 # BUILD NAME
 # ==============================
 
 def build_name(filename):
     name, ext = os.path.splitext(filename)
-    original_name = name # simpan original untuk deteksi NTR
+    # Simpan original untuk deteksi NTR
+    original_name = name
 
     # Deteksi NTR Dari Original Filename
     has_ntr = any(
-        re.search(rf'(^|[\s_\-]){re.escape(keyword_ntr)}($|[\s_\-])', original_name.lower())
+        re.search(rf'(?<![a-z0-9]){re.escape(keyword_ntr)}(?=[^a-z0-9]|$)', original_name.lower())
         for keyword_ntr in NTR_KEYWORDS
     )
 
-    # Hapus domain, simbol, dan variasi "nekopoi"
+    # Hapus domain, simbol, variasi "nekopoi" dan "alqanime"
     name = remove_domains(name)
     name = re.sub(r'(?i)ne\s*k\s*o\s*poi', '', name)
+    name = re.sub(r'(?i)al\s*q\s*a\s*nime', '', name)
     name = clean_symbols(name)
     
-    # slug detection (kalau dash terlalu banyak → kemungkinan dari URL)
+    # Slug detection (kalau dash terlalu banyak → kemungkinan dari URL)
     if name.count("-") >= 3:
         name = name.replace("-", " ")
 
     # Extract code, studio, resolution, uncensored, dimension dulu supaya bisa dihapus dari name sebelum proses selanjutnya
     code = extract_code(name)
     studio = extract_studio(name)
+    studio = remove_duplicate_author(studio)
     reso = extract_resolution(name)
     uncen = extract_uncen(name)
     dim = extract_dimension(name)
 
     # Hapus kode dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable code untuk nanti dijadikan prefix
     if code:
-        # hapus semua variasi kode fleksibel
+        # Hapus semua variasi kode fleksibel
         flexible = code.replace('-', r'[-_\s]*')
         name = re.sub(rf'(?i)\b{flexible}\b', '', name)
 
-    # khusus FC2 → hapus angka mentahnya juga
+    # Khusus FC2 → hapus angka mentahnya juga
     if code and code.startswith("FC2-PPV-"):
         number = code.split("-")[-1]
         name = re.sub(rf'(?i)\b{number}\b', '', name)
@@ -308,7 +388,8 @@ def build_name(filename):
     # Hapus nama studio dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable studio untuk nanti dijadikan prefix
     if studio:
         name = re.sub(re.escape(studio), '', name, flags=re.I)
-        name = re.sub(r'(?i)\bby\s*', '', name)  # hapus "By ", "by ", "BY " dll
+        # hapus "By ", "by ", "BY " dll dari name supaya gak muncul lagi di title, karena udah diambil sebagai nama studio, tapi tetap simpan di variable studio untuk nanti dijadikan prefix.
+        name = re.sub(r'(?i)\bby\s*', '', name)
         name = name.strip()
 
     # Hapus resolusi dan uncensored dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable reso dan uncen untuk nanti dijadikan suffix
@@ -324,8 +405,13 @@ def build_name(filename):
     if dim:
         name = re.sub(rf'\b{re.escape(dim)}\b', '', name, flags=re.I)
 
+    # Hapus NTR dari nama biar gak double kalau keyword NTR muncul di filename, karena kita sudah mendeteksi NTR di awal dan akan menambahkan prefix "NTR" di title nanti, jadi kita bisa hapus keyword NTR dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable has_ntr untuk nanti dijadikan prefix.
+    name = re.sub(r'(?i)\b(?:' + '|'.join(map(re.escape, NTR_KEYWORDS)) + r')\b', '', name)
     name = clean_symbols(name)
     name = name.replace("–", "-").replace("—", "-")
+    
+    # Fix Japanese Suffix (misal Mast_s → Mast's, dan handling untuk gelar kehormatan Jepang)    
+    name = fix_japanese_suffix(name)
     
     # ===== Extract episode number di akhir =====
     episode = ""
@@ -337,14 +423,14 @@ def build_name(filename):
             episode = m_ep.group(1).zfill(2)
             name = re.sub(r'(?:-|_)?\s*\d{1,2}$', '', name).strip()
 
-    # hapus simbol gantung di akhir
+    # Hapus simbol gantung di akhir
     name = re.sub(r'[-\s]+$', '', name).strip()
     name = re.sub(r'\s-\s-', ' - ', name)
 
     parts = []  
     
-    # NTR Prefix
-    if has_ntr:
+    # NTR Prefix (karena biasanya ini yang paling penting untuk ditonjolkan, jadi dipasang paling depan)
+    if has_ntr and not name.startswith("NTR"):
         parts.append("NTR")
 
     # Code Prefix
@@ -394,21 +480,10 @@ def build_name(filename):
 real_folder = os.path.join(BASE_DIR, "Real")
 dup_folder = os.path.join(BASE_DIR, "_DUPLICATE")
 lainnya_folder = os.path.join(BASE_DIR, "Lainnya")
+english_folder = os.path.join(BASE_DIR, "English")
 
-for folder in [real_folder, dup_folder, lainnya_folder]:
+for folder in [real_folder, dup_folder, lainnya_folder, english_folder]:
     os.makedirs(folder, exist_ok=True)
-
-# ==============================
-# STATS
-# ==============================
-
-renamed_count = 0
-skip_clean_count = 0
-title_null_count = 0
-real_count = 0
-lainnya_count = 0
-duplicate_move_count = 0
-tetap_count = 0
     
 # ==============================
 # MAIN LOOP
@@ -421,6 +496,7 @@ for file in os.listdir(BASE_DIR):
     lower = file.lower()
     old_path = os.path.join(BASE_DIR, file)
 
+    # DETEKSI DOWNLOADER
     is_downloader = any(x in lower for x in [
         "snapsave",
         "fbdownload",
@@ -430,9 +506,29 @@ for file in os.listdir(BASE_DIR):
         "ssstik",
         "facebook"
     ])
+    
+    # DETEKSI ENGLISH SUBTITLE (dengan berbagai variasi penulisan yang mungkin muncul di filename, supaya bisa lebih akurat dalam mendeteksi apakah file tersebut punya subtitle bahasa Inggris atau bukan, karena biasanya file-file dengan subtitle bahasa Inggris ini yang paling banyak muncul dengan berbagai macam format penamaan yang agak kacau).
+    is_english = any(x in lower for x in [
+        "english",
+        "engsub",
+        "engsubs",
+        "eng sub",
+        "eng subs",
+        "subtitle english",
+        "subtitle eng",
+        "sub eng",
+        "sub english",
+        "subbed english",
+        "subbed eng",
+        "v1x"
+    ])
 
+    # DETEKSI NEKOPOI (dengan berbagai variasi penulisan yang mungkin muncul di filename, termasuk yang diselingi simbol atau spasi, supaya bisa lebih akurat dalam mendeteksi apakah file tersebut berasal dari NekoPoi atau bukan, karena biasanya file-file dari NekoPoi ini yang paling banyak muncul dengan berbagai macam format penamaan yang agak kacau).
     clean = re.sub(r'[\s_\-\.]', '', lower)
-    is_nekopoi = any(x in clean for x in ["nekopoi", "nekpoi"])
+    is_adult = any(x in clean for x in [
+        "nekopoi", 
+        "nekpoi"
+        ]) or ("alqanime" in clean and re.search(r'\b(u|uc|uncen|uncensored)\b', lower))
     
     has_hashtag = "#" in file
     
@@ -441,14 +537,14 @@ for file in os.listdir(BASE_DIR):
     temp_name = clean_symbols(temp_name)
     temp_code = extract_code(temp_name)
     temp_reso = extract_resolution(temp_name)
-    temp_conf = temp_reso or temp_code
+    temp_config = temp_reso or temp_code
     
     # ==============================
     # HARD BYPASS HASHTAG
     # ==============================
     if has_hashtag:
         destination = os.path.join(lainnya_folder, file)
-        print(f"[HASHTAG BYPASS] {file} -> Lainnya/")
+        print(f"{C.RED}[HASHTAG]{C.RESET} {file} -> Lainnya/")
         lainnya_count += 1
 
         if not DRY_RUN:
@@ -460,9 +556,21 @@ for file in os.listdir(BASE_DIR):
     # ==============================
     if is_downloader:
         destination = os.path.join(lainnya_folder, file)
-        print(f"[DOWNLOADER] {file} -> Lainnya/")
+        print(f"{C.RED}[DOWNLOADER]{C.RESET} {file} -> Lainnya/")
         lainnya_count += 1
 
+        if not DRY_RUN:
+            safe_move(old_path, destination)
+        continue
+    
+    # ==============================
+    # HARD BYPASS English Subtitle
+    # ==============================
+    if is_english:
+        destination = os.path.join(english_folder, file)
+        print(f"{C.GREEN}[ENGLISH]{C.RESET} {file} -> English/")
+        english_count += 1
+        
         if not DRY_RUN:
             safe_move(old_path, destination)
         continue
@@ -470,9 +578,9 @@ for file in os.listdir(BASE_DIR):
     # ==============================
     # HARD BYPASS NON NEKOPOI
     # ==============================
-    if not temp_conf and not is_nekopoi:
+    if not temp_config and not is_adult:
         destination = os.path.join(lainnya_folder, file)
-        print(f"[MOVED NON-NEKOPOI] {file} -> Lainnya/")
+        print(f"{C.RED}[NON-NEKOPOI]{C.RESET} {file} -> Lainnya/")
         lainnya_count += 1
 
         if not DRY_RUN:
@@ -485,22 +593,27 @@ for file in os.listdir(BASE_DIR):
     new_name, code = build_name(file)
     new_path = os.path.join(BASE_DIR, new_name)
 
+    # Untuk deteksi duplikat, kita cukup cek title tanpa ekstensi dan tanpa spasi di awal/akhir, supaya lebih akurat dalam mendeteksi apakah title tersebut sudah pernah muncul sebelumnya, tanpa khawatir soal perbedaan kapitalisasi, ekstensi, atau spasi yang mungkin muncul di awal/akhir. Ini akan membantu memastikan kalau ada file dengan title yang sama (meskipun dengan ekstensi atau format penulisan yang sedikit berbeda), bisa langsung dikenali sebagai duplikat.
     title_without_ext = os.path.splitext(new_name)[0].strip()
     title_key = title_without_ext
     title_key_lower = title_key.lower()
 
+    # Kalau title kosong setelah di-clean, anggap ini sebagai kasus khusus yang perlu ditangani, karena biasanya ini menunjukkan kalau file tersebut gak punya informasi yang cukup untuk dijadikan title yang valid, dan kita bisa langsung bypass atau tandai dengan cara tertentu supaya gak masuk ke proses selanjutnya yang mungkin malah bikin kacau. Ini akan membantu memastikan kalau ada file yang gak punya title yang valid, bisa langsung dikenali dan ditangani dengan cara yang sesuai, tanpa harus dipaksakan masuk ke proses normal yang mungkin gak cocok untuk kasus-kasus seperti ini.
     name_only = os.path.splitext(new_name)[0].strip()
     if not name_only:
-        print(f"[TITLE NULL] {file}")
+        print(f"{C.RED}[TITLE NULL]{C.RESET} {file}")
+        
         title_null_count += 1
         continue
 
+    # Cek duplikat berdasarkan title_key_lower, karena kita mau pastikan kalau ada title yang sama (meskipun dengan ekstensi atau format penulisan yang sedikit berbeda), bisa langsung dikenali sebagai duplikat tanpa khawatir soal perbedaan kapitalisasi atau ekstensi. Ini akan membantu memastikan kalau ada file dengan title yang sama, bisa langsung ditangani sebagai duplikat dengan benar.
     is_duplicate = title_key_lower in seen_titles_lower
 
     # === RENAME ===
     if new_name != file:
-        print(f"[RENAMED] {file}  ->  {new_name}")
+        print(f"{C.GREEN}[RENAMED]{C.RESET} {file} -> {new_name}")
         renamed_count += 1
+        
         if not DRY_RUN:
             os.rename(old_path, new_path)
     else:
@@ -510,15 +623,17 @@ for file in os.listdir(BASE_DIR):
     # === MOVE LOGIC ===
     if is_duplicate:
         destination = os.path.join(dup_folder, new_name)
-        print(f"[DUPLICATE] {new_name} -> _DUPLICATE/")
+        print(f"{C.YELLOW}[DUPLICATE]{C.RESET} {new_name} -> _DUPLICATE/")
         duplicate_move_count += 1
+        
         if not DRY_RUN:
             safe_move(new_path, destination)
 
     elif code:
         destination = os.path.join(real_folder, new_name)
-        print(f"[MOVED] {new_name} -> Real/")
+        print(f"{C.CYAN}[MOVED]{C.RESET} {new_name} -> Real/")
         real_count += 1
+        
         if not DRY_RUN:
             safe_move(new_path, destination)
 
@@ -545,14 +660,16 @@ if not DRY_RUN:
 # ==============================
 
 print("\n=========== RINGKASAN ===========")
-print(f"✔ Di-rename    : {renamed_count}")
-print(f"⇰ Sudah rapi   : {skip_clean_count}")
-print(f"↻ Judul kosong : {title_null_count}")
+print(f"{C.GREEN}✔ Di-rename{C.RESET}    : {renamed_count}")
+print(f"{C.YELLOW}⇰ Sudah rapi{C.RESET}   : {skip_clean_count}")
+print(f"{C.RED}↻ Judul kosong{C.RESET} : {title_null_count}")
+print(f"{C.BLUE}• Author baru{C.RESET}  : {author_count}")
 print("=================================")
 
 print("\n===========  OUTPUT  ===========")
-print(f"✔ Real         : {real_count}")
-print(f"⇰ Lainnya      : {lainnya_count}")
-print(f"⇲ Duplicate    : {duplicate_move_count}")
-print(f"• Tetap        : {tetap_count}")
+print(f"{C.GREEN}✔ Real{C.RESET}         : {real_count}")
+print(f"{C.YELLOW}⇰ Lainnya{C.RESET}      : {lainnya_count}")
+print(f"{C.RED}⇲ Duplicate{C.RESET}    : {duplicate_move_count}")
+print(f"{C.BLUE}• Tetap{C.RESET}        : {tetap_count}")
+print(f"{C.GREEN}• English{C.RESET}      : {english_count}")
 print("=================================")
