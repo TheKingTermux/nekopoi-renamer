@@ -152,6 +152,7 @@ Video #tiktok #viral.mp4
 | Punya kode JAV        | `Real/`               |
 | Duplikat              | `_DUPLICATE/`         |
 | Hashtag / Non-NekoPoi | `Lainnya/`            |
+| Sub Eng / Sub Inggris | `English/`            |
 | Sisanya               | Tetap di folder utama |
 
 ---
