@@ -715,6 +715,7 @@ for file in os.listdir(BASE_DIR):
         
 write_log("=" * 60)
 write_log("END SESSION")
+write_log("=" * 60)
 write_log(f"RENAMED      : {renamed_count}")
 write_log(f"SUDAH RAPI   : {skip_clean_count}")
 write_log(f"JUDUL KOSONG : {title_null_count}")
