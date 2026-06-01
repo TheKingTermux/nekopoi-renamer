@@ -1,8 +1,10 @@
 from colorama import init
-init()
+from datetime import datetime
 import os
 import re
 import shutil
+
+init(autoreset=True)
 
 # ==============================
 # CONFIG
@@ -22,6 +24,7 @@ class C:
     YELLOW = "\033[93m"
     BLUE = "\033[94m"
     CYAN = "\033[96m"
+    PINK = "\033[95m"
     RESET = "\033[0m"
 
 # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
@@ -29,7 +32,7 @@ DRY_RUN = False
 
 # Daftar keyword NTR yang akan dideteksi di filename, termasuk variasi dan sinonimnya, supaya bisa langsung ditangkap sebagai indikasi NTR dan ditambahkan prefix "NTR" di title. Ini akan membantu memastikan kalau ada file dengan tema NTR, bisa langsung dikenali dan diproses dengan benar.
 NTR_KEYWORDS = [
-    "ntr", "netorare", "netori", "netorase", "cheating", "cuckold", "cuck", "affair", "cuckolded", "cucked", "cuckolding", "cuckoldry", "adultery", "infidelity", "betrayal", "unfaithful", "side piece", "stolen wife", "wife sharing", "partner sharing", "stolen", "sharing", "shared", "nettori", "nettorare", "nettorase", "istri orang", "suami orang", "pasangan orang", "selingkuh", "selingkuhan", "perselingkuhan", "tidak setia", "pihak ketiga", "istri dicuri", "berbagi istri", "berbagi pasangan"
+    "ntr", "netorare", "netori", "netorase", "cheating", "cuckold", "cuck", "affair", "cuckolded", "cucked", "cuckolding", "cuckoldry", "adultery", "infidelity", "betrayal", "unfaithful", "side piece", "stolen wife", "wife sharing", "partner sharing", "stolen", "sharing", "shared", "nettori", "nettorare", "nettorase", "istri orang", "suami orang", "pasangan orang", "selingkuh", "selingkuhan", "perselingkuhan", "tidak setia", "pihak ketiga", "istri dicuri", "berbagi istri", "berbagi pasangan", "berselingkuh"
 ]
 
 # Daftar gelar kehormatan Jepang yang sering muncul di filename, supaya bisa dikenali dan diproses dengan benar, terutama kalau ada nama karakter yang disertai dengan gelar kehormatan ini, kita bisa langsung tangkap dan pisahkan dengan benar di title. Ini akan membantu memastikan nama karakter yang muncul di title bisa lebih lengkap dan akurat, terutama kalau ada kasus-kasus di mana gelar kehormatan ini jadi bagian penting dari identitas karakter tersebut.
@@ -46,6 +49,44 @@ def safe_move(src, dst):
             counter += 1
         dst = f"{base}_{counter}{ext}"
     shutil.move(src, dst)
+    
+# Setup folder untuk log, dengan struktur yang rapi untuk memisahkan antara log untuk file yang berhasil diproses (Stable) dan log untuk file yang mengalami masalah atau yang perlu diperiksa lebih lanjut (Debug). Ini akan membantu memudahkan proses review dan troubleshooting setelah script dijalankan, dengan memberikan tempat yang terorganisir untuk menyimpan semua catatan terkait proses rename/move file.
+LOG_ROOT = "Log"
+STABLE_LOG_DIR = os.path.join(LOG_ROOT, "Stable")
+DEBUG_LOG_DIR = os.path.join(LOG_ROOT, "Debug")
+
+os.makedirs(STABLE_LOG_DIR, exist_ok=True)
+os.makedirs(DEBUG_LOG_DIR, exist_ok=True)
+
+# Fungsi untuk mendapatkan nama file log yang unik berdasarkan timestamp saat script dijalankan, dan menempatkannya di folder yang sesuai berdasarkan apakah ini dry run atau bukan. Ini akan membantu memastikan setiap kali script dijalankan, log yang dihasilkan akan disimpan dengan nama yang unik dan terorganisir dengan baik, sehingga memudahkan proses review dan troubleshooting setelahnya.
+def get_log_file():
+    now = datetime.now().strftime("%d-%m-%Y %H-%M-%S")
+
+    if DRY_RUN:
+        log_dir = DEBUG_LOG_DIR
+    else:
+        log_dir = STABLE_LOG_DIR
+
+    return os.path.join(log_dir, f"{now}.txt")
+
+# Fungsi untuk menulis log ke file log yang sudah disiapkan, dengan format timestamp di awal setiap pesan, supaya bisa memberikan catatan yang jelas dan terstruktur tentang apa saja yang terjadi selama proses rename/move file, terutama untuk keperluan review dan troubleshooting setelahnya.
+LOG_FILE = get_log_file()
+
+def write_log(msg):
+    global LOG_FILE
+
+    if LOG_FILE is None:
+        LOG_FILE = get_log_file()
+        
+    timestamp = datetime.now().strftime("[%H:%M:%S]")
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{timestamp} {msg}\n")
+        
+write_log("=" * 60)
+write_log("START SESSION")
+write_log(f"MODE: {'DEBUG' if DRY_RUN else 'STABLE'}")
+write_log("=" * 60)
     
 # ==============================
 # LOAD FILES
@@ -106,7 +147,7 @@ def clean_symbols(name):
     name = re.sub(r'[_]+', ' ', name)
     name = re.sub(r'\s{2,}', ' ', name)
     name = re.sub(r'\s*\.\s*', ' ', name)
-    name = re.sub(r'-{2,}.*$', '', name)
+    name = re.sub(r'-{3,}.*$', '', name)
     return name.strip(" -").strip()
 
 # Fungsi untuk menghapus domain, URL, dan variasi "nekopoi" dari nama file, supaya gak muncul di title. Ini termasuk deteksi berbagai macam TLD yang umum dipakai di situs-situs semacam ini, serta handling khusus untuk variasi "nekopoi" yang sering muncul dengan spasi atau simbol di antaranya.
@@ -140,9 +181,9 @@ def extract_code(name):
         r'(?i)(CN)[-_\s]?(\d{6,12})',
         r'(?i)(CUS)[-_\s]?(\d{3,4})(-\d+)?',
         r'(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
-        r'(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|CN|MD|HEYZO|SIRO|1PON|CARIB|FPRE|CUS|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR|546EROFV|JD|MT|420STH|COSH|420HHL|BOBB|DVRT|EYAN|29ID|BOINBB|LY|OS|XSJYH)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
-        r'(?i)\b([A-Z0-9]{3,5})[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)',
-        r'(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK))?(\b|$)'
+        r'(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|HEYZO|SIRO|1PON|CARIB|FPRE|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR|546EROFV|JD|MT|420STH|COSH|420HHL|BOBB|DVRT|EYAN|29ID|BOINBB|LY|OS|XSJYH|420HPT|TTP|476MLA|758REFUCK|413INSTV|326FCT)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)',
+        r'(?i)\b([A-Z0-9]{3,5})[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)',
+        r'(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)'
     ]
 
     # Coba semua pattern satu per satu, kalau match, langsung proses untuk memastikan formatnya benar, dan return hasilnya. Kalau gak ada yang match, return "".
@@ -212,9 +253,16 @@ def extract_studio(name):
     global author_count
     # Prioritas 1: dari author list
     for author_lower in author_list:
-        pattern = re.compile(rf'\b{re.escape(author_lower)}\b', re.I)
-        if pattern.search(name):
-            return author_map[author_lower]
+        patterns = [
+            # di awal atau setelah simbol/sapasi, dengan spasi/dash/underscore setelahnya (untuk menghindari ketuker dengan kata lain yang mengandung nama studio sebagai substring)
+            rf'^(?:\[.*?\]\s*)?{re.escape(author_lower)}(?:\s|-|_)',
+
+            # di akhir atau sebelum simbol/spasi, dengan spasi/dash/underscore sebelumnya (untuk menghindari ketuker dengan kata lain yang mengandung nama studio sebagai substring)
+            rf'[\[\(]{re.escape(author_lower)}[\]\)]',
+        ]
+        for pat in patterns:
+            if re.search(pat, name, re.I):
+                return author_map[author_lower]
         
     # Prioritas 2: by XXX
     by_match = re.findall(
@@ -246,16 +294,18 @@ def extract_studio(name):
 
             # Auto-add ke author.txt kalau belum ada di list, supaya nanti bisa dikenali sebagai studio yang valid di file-file berikutnya tanpa harus restart script. Ini akan membantu memperkaya database author.txt secara otomatis berdasarkan temuan di filename, tanpa harus repot-repot edit manual setiap kali nemu studio baru yang valid.
             if by_studio_lower not in author_list:
-                print(f"{C.GREEN}[AUTO-ADD AUTHOR]{C.RESET} {by_studio} → tidak ada di author.txt → ditambahkan!")
+                print(f"{C.GREEN}[AUTO-ADD AUTHOR]{C.RESET} {by_studio} → tidak ada di author.txt")
+                write_log(f"[AUTO-ADD AUTHOR] {by_studio} → tidak ada di author.txt")
 
                 if not DRY_RUN:
                     print(f"   ↳ ditambahkan ke author.txt")
+                    write_log(f"[AUTO-ADD AUTHOR] {by_studio} → ditambahkan ke author.txt")
                     with open(AUTHOR_FILE, "a", encoding="utf-8") as f:
                         f.write(by_studio + "\n")
-                        author_count += 1
+                    author_count += 1
                 else:
                     print(f"   ↳ (DRY RUN) tidak ditulis ke file")
-
+                    write_log(f"[AUTO-ADD AUTHOR] {by_studio} → (DRY RUN) tidak ditulis ke file")
                 # Update list dan map di runtime juga supaya langsung bisa dipakai untuk file berikutnya tanpa harus reload
                 author_list.append(by_studio_lower)
                 author_map[by_studio_lower] = by_studio
@@ -405,8 +455,8 @@ def build_name(filename):
     if dim:
         name = re.sub(rf'\b{re.escape(dim)}\b', '', name, flags=re.I)
 
-    # Hapus NTR dari nama biar gak double kalau keyword NTR muncul di filename, karena kita sudah mendeteksi NTR di awal dan akan menambahkan prefix "NTR" di title nanti, jadi kita bisa hapus keyword NTR dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable has_ntr untuk nanti dijadikan prefix.
-    name = re.sub(r'(?i)\b(?:' + '|'.join(map(re.escape, NTR_KEYWORDS)) + r')\b', '', name)
+    # Hapus keyword NTR dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable has_ntr untuk nanti dijadikan prefix "NTR" kalau memang terdeteksi. Ini akan membantu memastikan kalau ada file dengan tema NTR, bisa langsung dikenali dan diproses dengan benar, tapi tanpa harus menyisakan keyword NTR yang bisa bikin title jadi terlihat kurang rapi atau terlalu panjang.
+    name = re.sub(r'(?i)^\s*[\[\(]?(?:' + '|'.join(map(re.escape, NTR_KEYWORDS)) + r')[\]\)]?[-_\s]*', '', name)
     name = clean_symbols(name)
     name = name.replace("–", "-").replace("—", "-")
     
@@ -479,11 +529,14 @@ def build_name(filename):
 
 real_folder = os.path.join(BASE_DIR, "Real")
 dup_folder = os.path.join(BASE_DIR, "_DUPLICATE")
+dup_large_folder = os.path.join(dup_folder, "Large")
 lainnya_folder = os.path.join(BASE_DIR, "Lainnya")
 english_folder = os.path.join(BASE_DIR, "English")
 
-for folder in [real_folder, dup_folder, lainnya_folder, english_folder]:
+for folder in [real_folder, dup_folder, dup_large_folder, lainnya_folder, english_folder]:
     os.makedirs(folder, exist_ok=True)
+    
+LARGE_DUP_SIZE = 150 * 1024 * 1024  # 150 MB
     
 # ==============================
 # MAIN LOOP
@@ -528,7 +581,7 @@ for file in os.listdir(BASE_DIR):
     is_adult = any(x in clean for x in [
         "nekopoi", 
         "nekpoi"
-        ]) or ("alqanime" in clean and re.search(r'\b(u|uc|uncen|uncensored)\b', lower))
+        ]) or ("alqanime" in clean and re.search(r'\b(u|uc|uncen|uncensored|mr)\b', lower))
     
     has_hashtag = "#" in file
     
@@ -545,6 +598,7 @@ for file in os.listdir(BASE_DIR):
     if has_hashtag:
         destination = os.path.join(lainnya_folder, file)
         print(f"{C.RED}[HASHTAG]{C.RESET} {file} -> Lainnya/")
+        write_log(f"[HASHTAG] {file} -> Lainnya/")
         lainnya_count += 1
 
         if not DRY_RUN:
@@ -557,6 +611,7 @@ for file in os.listdir(BASE_DIR):
     if is_downloader:
         destination = os.path.join(lainnya_folder, file)
         print(f"{C.RED}[DOWNLOADER]{C.RESET} {file} -> Lainnya/")
+        write_log(f"[DOWNLOADER] {file} -> Lainnya/")
         lainnya_count += 1
 
         if not DRY_RUN:
@@ -569,6 +624,7 @@ for file in os.listdir(BASE_DIR):
     if is_english:
         destination = os.path.join(english_folder, file)
         print(f"{C.GREEN}[ENGLISH]{C.RESET} {file} -> English/")
+        write_log(f"[ENGLISH] {file} -> English/")
         english_count += 1
         
         if not DRY_RUN:
@@ -581,6 +637,7 @@ for file in os.listdir(BASE_DIR):
     if not temp_config and not is_adult:
         destination = os.path.join(lainnya_folder, file)
         print(f"{C.RED}[NON-NEKOPOI]{C.RESET} {file} -> Lainnya/")
+        write_log(f"[NON-NEKOPOI] {file} -> Lainnya/")
         lainnya_count += 1
 
         if not DRY_RUN:
@@ -602,7 +659,7 @@ for file in os.listdir(BASE_DIR):
     name_only = os.path.splitext(new_name)[0].strip()
     if not name_only:
         print(f"{C.RED}[TITLE NULL]{C.RESET} {file}")
-        
+        write_log(f"[TITLE NULL] {file}")
         title_null_count += 1
         continue
 
@@ -612,26 +669,38 @@ for file in os.listdir(BASE_DIR):
     # === RENAME ===
     if new_name != file:
         print(f"{C.GREEN}[RENAMED]{C.RESET} {file} -> {new_name}")
+        write_log(f"[RENAMED] {file} -> {new_name}")
         renamed_count += 1
         
         if not DRY_RUN:
             os.rename(old_path, new_path)
     else:
         new_path = old_path
+        write_log(f"[MOVE] {file} -> {os.path.basename(new_path)}")
         skip_clean_count += 1
 
     # === MOVE LOGIC ===
     if is_duplicate:
-        destination = os.path.join(dup_folder, new_name)
-        print(f"{C.YELLOW}[DUPLICATE]{C.RESET} {new_name} -> _DUPLICATE/")
-        duplicate_move_count += 1
-        
+        current_path = new_path if (not DRY_RUN and new_name != file) else old_path
+        file_size = os.path.getsize(current_path)
+        if file_size >= LARGE_DUP_SIZE:
+            destination = os.path.join(dup_large_folder, new_name)
+            print(f"{C.PINK}[LARGE DUPLICATE]{C.RESET} {new_name} -> _DUPLICATE/Large/")
+            write_log(f"[LARGE DUPLICATE] {new_name} -> _DUPLICATE/Large/")
+            duplicate_move_count += 1
+        else:
+            destination = os.path.join(dup_folder, new_name)
+            print(f"{C.YELLOW}[DUPLICATE]{C.RESET} {new_name} -> _DUPLICATE/")
+            write_log(f"[DUPLICATE] {new_name} -> _DUPLICATE/")
+            duplicate_move_count += 1
+            
         if not DRY_RUN:
             safe_move(new_path, destination)
 
     elif code:
         destination = os.path.join(real_folder, new_name)
         print(f"{C.CYAN}[MOVED]{C.RESET} {new_name} -> Real/")
+        write_log(f"[MOVED] {new_name} -> Real/")
         real_count += 1
         
         if not DRY_RUN:
@@ -643,6 +712,19 @@ for file in os.listdir(BASE_DIR):
     if title_key_lower not in seen_titles_lower:
         existing_titles.append(title_key)
         seen_titles_lower.add(title_key_lower)
+        
+write_log("=" * 60)
+write_log("END SESSION")
+write_log(f"RENAMED      : {renamed_count}")
+write_log(f"SUDAH RAPI   : {skip_clean_count}")
+write_log(f"JUDUL KOSONG : {title_null_count}")
+write_log(f"AUTHOR BARU  : {author_count}")
+write_log(f"REAL         : {real_count}")
+write_log(f"LAINNYA      : {lainnya_count}")
+write_log(f"DUPLICATES   : {duplicate_move_count}")
+write_log(f"TETAP        : {tetap_count}")
+write_log(f"ENGLISH      : {english_count}")
+write_log("=" * 60)
 
 # ==============================
 # SAVE REGISTRY
