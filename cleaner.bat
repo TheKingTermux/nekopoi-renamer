@@ -42,7 +42,7 @@ goto MainMenu
 
 :RunCleaner
 cls
-echo "Gunakan ini jika Main Script (Python) tidak bekerja dengan baik"
+echo "Script ini sudah tidak bekerja dengan baik dibandingkan dengan Main Script (Python)"
 echo "Pilih 1 untuk Lanjut, Pilih 2 untuk Kembali"
 
 echo:
