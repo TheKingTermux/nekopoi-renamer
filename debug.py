@@ -15,6 +15,7 @@ VIDEO_EXT = [".mp4", ".mkv", ".mov", ".webm"]
 BASE_DIR = os.getcwd()
 AUTHOR_FILE = "author.txt"
 KEYWORD_FILE = "keyword.txt"
+COSPLAY_FILE = "cosplay.txt"
 TITLE_REGISTRY = "judul.txt"
 
 # ANSI color codes untuk output yang lebih menarik dan mudah dibaca di terminal, terutama untuk membedakan antara berbagai jenis pesan seperti error, warning, info, dll. Ini akan membantu meningkatkan pengalaman pengguna saat menjalankan script ini di terminal, dengan memberikan visual cues yang jelas untuk setiap jenis pesan yang muncul.
@@ -25,8 +26,9 @@ class C:
     BLUE = "\033[94m"
     CYAN = "\033[96m"
     PINK = "\033[95m"
+    MAGENTA = "\033[95m"
     RESET = "\033[0m"
-
+    
 # Ubah ke True kalau mau test tanpa rename/move, Ubah ke False kalau mau langsung rename/move
 DRY_RUN = False
 
@@ -87,6 +89,77 @@ write_log("=" * 60)
 write_log("START SESSION")
 write_log(f"MODE: {'DEBUG' if DRY_RUN else 'STABLE'}")
 write_log("=" * 60)
+
+# Fungsi untuk mendapatkan semua emoji
+def contains_emoji(text):
+    emoji_pattern = re.compile(
+        "["
+        # Emoticon
+        "\U0001F600-\U0001F64F"
+        # Miscellaneous Symbols & Pictographs
+        "\U0001F300-\U0001F5FF"
+        # Transport & Map
+        "\U0001F680-\U0001F6FF"
+        # Alchemical Symbols
+        "\U0001F700-\U0001F77F"
+        # Geometric Shapes Extended
+        "\U0001F780-\U0001F7FF"
+        # Supplemental Arrows-C
+        "\U0001F800-\U0001F8FF"
+        # Supplemental Symbols & Pictographs
+        "\U0001F900-\U0001F9FF"
+        # Symbols & Pictographs Extended-A
+        "\U0001FA00-\U0001FA6F"
+        "\U0001FA70-\U0001FAFF"
+
+        # Dingbats
+        "\u2700-\u27BF"
+
+        # Miscellaneous Symbols
+        "\u2600-\u26FF"
+
+        # Miscellaneous Technical
+        "\u2300-\u23FF"
+
+        # Supplemental Symbols and Arrows
+        "\u2B00-\u2BFF"
+
+        # Enclosed Alphanumeric Supplement
+        "\U0001F100-\U0001F1FF"
+
+        # Enclosed Ideographic Supplement
+        "\U0001F200-\U0001F2FF"
+
+        # Mahjong / Playing Cards
+        "\U0001F000-\U0001F0FF"
+
+        # Regional Indicator Symbols (🇮🇩 🇯🇵 dll)
+        "\U0001F1E6-\U0001F1FF"
+
+        # Zero Width Joiner / Variation Selector
+        "\u200D"
+        "\uFE0F"
+
+        # Keycap / combining
+        "\u20E3"
+
+        # © ® ™
+        "\u00A9"
+        "\u00AE"
+        "\u2122"
+
+        # Hearts / stars / miscellaneous symbols
+        "\u2764"
+        "\u2665"
+        "\u2661"
+        "\u2605"
+        "\u2606"
+
+        "]+",
+        flags=re.UNICODE
+    )
+
+    return bool(emoji_pattern.search(text))
     
 # ==============================
 # LOAD FILES
@@ -122,6 +195,17 @@ if os.path.exists(TITLE_REGISTRY):
             if clean_line:
                 existing_titles.append(clean_line)
                 seen_titles_lower.add(clean_line.lower())
+
+# Load cosplay list untuk deteksi koleksi Adult Cosplay
+cosplay_names = set()
+
+if os.path.exists(COSPLAY_FILE):
+    with open(COSPLAY_FILE, "r", encoding="utf-8") as f:
+        cosplay_names = {
+            line.strip().lower()
+            for line in f
+            if line.strip() and not line.strip().startswith("#")
+        }
                 
 # ==============================
 # STATS
@@ -136,6 +220,7 @@ duplicate_move_count = 0
 tetap_count = 0
 author_count = 0
 english_count = 0
+cosplay_count = 0
 
 # ==============================
 # CLEANING FUNCTIONS
@@ -181,7 +266,7 @@ def extract_code(name):
         r'(?i)(CN)[-_\s]?(\d{6,12})',
         r'(?i)(CUS)[-_\s]?(\d{3,4})(-\d+)?',
         r'(?i)(MD)[-_\s]?(\d{3,6})(-\d+)?',
-        r'(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|HEYZO|SIRO|1PON|CARIB|FPRE|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR|546EROFV|JD|MT|420STH|COSH|420HHL|BOBB|DVRT|EYAN|29ID|BOINBB|LY|OS|XSJYH|420HPT|TTP|476MLA|758REFUCK|413INSTV|326FCT)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)',
+        r'(?i)\b(SSNI|SSIS|DLDSS|MIAA|MIDV|IPX|STARS|CAWD|HMN|FSDSS|JUQ|FOCS|RCTD|REAL|KBJ|HEYZO|SIRO|1PON|CARIB|FPRE|JDKR|MDWP|PMA|MIAB|MIDA|MIMK|SNOS|START|MUDR|ABF|ABP|ADN|ATID|BF|BLK|EBOD|EBWH|GANA|GOPJ|JUR|MEYD|NIMA|NSFS|PRED|S-Cute|SUPA|TEK|WANZ|XVSR|546EROFV|JD|MT|420STH|COSH|420HHL|BOBB|DVRT|EYAN|29ID|BOINBB|LY|OS|XSJYH|420HPT|TTP|476MLA|758REFUCK|413INSTV|326FCT|348NTR)[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)',
         r'(?i)\b([A-Z0-9]{3,5})[-_\s]*(\d{3,12})(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)',
         r'(?i)\b([A-Z]{3,5})[-_\s]*(\d{3,6})(?:[-_\s]*\d)?(?:[-_\s]*(U|UC|UNCEN|LEAK|MR))?(\b|$)'
     ]
@@ -457,21 +542,67 @@ def build_name(filename):
 
     # Hapus keyword NTR dari nama utama supaya gak muncul lagi di title, tapi tetap simpan di variable has_ntr untuk nanti dijadikan prefix "NTR" kalau memang terdeteksi. Ini akan membantu memastikan kalau ada file dengan tema NTR, bisa langsung dikenali dan diproses dengan benar, tapi tanpa harus menyisakan keyword NTR yang bisa bikin title jadi terlihat kurang rapi atau terlalu panjang.
     name = re.sub(r'(?i)^\s*[\[\(]?(?:' + '|'.join(map(re.escape, NTR_KEYWORDS)) + r')[\]\)]?[-_\s]*', '', name)
+    
+    # Hapus subtitle dari nama utama supaya gak muncul lagi di title, karena biasanya subtitle ini cuma noise dan gak relevan untuk ditampilkan di title, tapi tetap simpan di variable uncen untuk nanti dijadikan suffix kalau memang terdeteksi. Ini akan membantu memastikan title yang dihasilkan lebih bersih dan rapi, tanpa harus menyisakan kata-kata yang bisa bikin bingung atau terlihat kacau.
+    name = re.sub(
+        r'(?i)\b(?:'
+        r'sub\s*indo|sub\s*indonesia|indo\s*sub|indosub|'
+        r'subtitle\s*indo(?:nesia)?|'
+        r'sub\s*eng(?:lish)?|eng\s*sub|english\s*sub|'
+        r'subtitle\s*eng(?:lish)?|'
+        r'softsub|hardsub|fansub|subbed'
+        r')\b',
+        '',
+        name
+    )
+    
+    # Hapus simbol-simbol yang tidak diinginkan dari nama file, seperti tanda kurung, underscore, titik, dan mengganti multiple spasi dengan single space. Juga termasuk handling khusus untuk tanda hubung yang sering muncul di filename, supaya gak jadi noise di title. Fungsi ini akan memastikan nama yang dihasilkan lebih bersih dan rapi sebelum diproses lebih lanjut.
     name = clean_symbols(name)
     name = name.replace("–", "-").replace("—", "-")
     
     # Fix Japanese Suffix (misal Mast_s → Mast's, dan handling untuk gelar kehormatan Jepang)    
     name = fix_japanese_suffix(name)
     
-    # ===== Extract episode number di akhir =====
+    # ===== Extract Season + Episode / Volume / Part =====
     episode = ""
+    season = ""
 
-    # Jangan tangkap angka kalau sebelumnya ada kata Season
-    if not re.search(r'Season\s+\d{1,2}$', name, re.IGNORECASE):
-        m_ep = re.search(r'(?<![A-Za-z0-9])(\d{1,2})$', name)
-        if m_ep:
-            episode = m_ep.group(1).zfill(2)
-            name = re.sub(r'(?:-|_)?\s*\d{1,2}$', '', name).strip()
+    # 1. Deteksi Season
+    season_match = re.search(r'(?i)\bSeason\s+(\d{1,3})', name)
+    if season_match:
+        season = f"Season {season_match.group(1)}"
+        name = re.sub(r'(?i)\bSeason\s+\d{1,3}', '', name)
+
+    # 2. Deteksi Episode Parts
+    episode_parts = []
+
+    patterns = [
+        (r'(?i)\bvol(?:ume)?\.?\s*(\d{1,3})\b', "Vol.{0}"),
+        (r'(?i)\bepisode\.?\s*(\d{1,3})\b', "{0}"),
+        (r'(?i)\beps?\.?\s*(\d{1,3})\b', "{0}"),
+        (r'(?i)\bpart\.?\s*(\d{1,3})\b', "Part.{0}"),
+        (r'(?<![A-Za-z0-9])(\d{1,2})\s*$', "{0}"),
+    ]
+
+    for pattern, fmt in patterns:
+        matches = re.findall(pattern, name)
+        for num in matches:
+            episode_parts.append(fmt.format(num.zfill(2)))
+
+    # Hapus semua yang sudah diekstrak
+    for pattern, _ in patterns:
+        name = re.sub(pattern, '', name, flags=re.IGNORECASE)
+
+    # Cleanup nama
+    name = re.sub(r'[\s_-]+$', '', name).strip()
+
+    # Gabungkan sesuai format yang diinginkan
+    if season and episode_parts:
+        episode = f" - {season} - " + " ".join(episode_parts)
+    elif season:
+        episode = f" - {season}"
+    elif episode_parts:
+        episode = " - " + " ".join(episode_parts)
 
     # Hapus simbol gantung di akhir
     name = re.sub(r'[-\s]+$', '', name).strip()
@@ -528,12 +659,13 @@ def build_name(filename):
 # ==============================
 
 real_folder = os.path.join(BASE_DIR, "Real")
+cosplay_folder = os.path.join(real_folder, "Cosplay")
 dup_folder = os.path.join(BASE_DIR, "_DUPLICATE")
 dup_large_folder = os.path.join(dup_folder, "Large")
 lainnya_folder = os.path.join(BASE_DIR, "Lainnya")
 english_folder = os.path.join(BASE_DIR, "English")
 
-for folder in [real_folder, dup_folder, dup_large_folder, lainnya_folder, english_folder]:
+for folder in [real_folder, cosplay_folder, dup_folder, dup_large_folder, lainnya_folder, english_folder]:
     os.makedirs(folder, exist_ok=True)
     
 LARGE_DUP_SIZE = 150 * 1024 * 1024  # 150 MB
@@ -584,6 +716,17 @@ for file in os.listdir(BASE_DIR):
         ]) or ("alqanime" in clean and re.search(r'\b(u|uc|uncen|uncensored|mr)\b', lower))
     
     has_hashtag = "#" in file
+    has_emoji = contains_emoji(file)
+    
+    # DETEKSI COSPLAY
+    is_cosplay = any(
+        re.search(
+            rf'(?<![a-z0-9]){re.escape(cosplay)}(?![a-z0-9])',
+            lower,
+            re.IGNORECASE
+        )
+        for cosplay in cosplay_names
+    )
     
     # PRE-CHECK CODE / RESOLUSI DULU
     temp_name = remove_domains(os.path.splitext(file)[0])
@@ -599,6 +742,19 @@ for file in os.listdir(BASE_DIR):
         destination = os.path.join(lainnya_folder, file)
         print(f"{C.RED}[HASHTAG]{C.RESET} {file} -> Lainnya/")
         write_log(f"[HASHTAG] {file} -> Lainnya/")
+        lainnya_count += 1
+
+        if not DRY_RUN:
+            safe_move(old_path, destination)
+        continue
+    
+    # ==============================
+    # HARD BYPASS EMOJI
+    # ==============================
+    if has_emoji:
+        destination = os.path.join(lainnya_folder, file)
+        print(f"{C.RED}[EMOJI]{C.RESET} {file} -> Lainnya/")
+        write_log(f"[EMOJI] {file} -> Lainnya/")
         lainnya_count += 1
 
         if not DRY_RUN:
@@ -630,11 +786,24 @@ for file in os.listdir(BASE_DIR):
         if not DRY_RUN:
             safe_move(old_path, destination)
         continue
+    
+    # ==============================
+    # HARD BYPASS COSPLAY
+    # ==============================
+    if is_cosplay:
+        destination = os.path.join(cosplay_folder, file)
+        print(f"{C.MAGENTA}[COSPLAY]{C.RESET} {file} -> Real/Cosplay/")
+        write_log(f"[COSPLAY] {file} -> Real/Cosplay/")
+        cosplay_count += 1
+
+        if not DRY_RUN:
+            safe_move(old_path, destination)
+        continue
 
     # ==============================
     # HARD BYPASS NON NEKOPOI
     # ==============================
-    if not temp_config and not is_adult:
+    if not temp_config and not is_adult and not is_cosplay:
         destination = os.path.join(lainnya_folder, file)
         print(f"{C.RED}[NON-NEKOPOI]{C.RESET} {file} -> Lainnya/")
         write_log(f"[NON-NEKOPOI] {file} -> Lainnya/")
@@ -725,6 +894,7 @@ write_log(f"LAINNYA      : {lainnya_count}")
 write_log(f"DUPLICATES   : {duplicate_move_count}")
 write_log(f"TETAP        : {tetap_count}")
 write_log(f"ENGLISH      : {english_count}")
+write_log(f"COSPLAY      : {cosplay_count}")
 write_log("=" * 60)
 
 # ==============================
@@ -755,4 +925,5 @@ print(f"{C.YELLOW}⇰ Lainnya{C.RESET}      : {lainnya_count}")
 print(f"{C.RED}⇲ Duplicate{C.RESET}    : {duplicate_move_count}")
 print(f"{C.BLUE}• Tetap{C.RESET}        : {tetap_count}")
 print(f"{C.GREEN}• English{C.RESET}      : {english_count}")
+print(f"{C.MAGENTA}• Cosplay{C.RESET}      : {cosplay_count}")
 print("=================================")
