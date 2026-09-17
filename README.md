@@ -387,6 +387,9 @@ English/
 Lainnya/
 _DUPLICATE/
 _DUPLICATE/Large/
+Log/
+Log/Debug/
+Log/Stable/
 ```
 
 Routing utama:
@@ -403,7 +406,7 @@ Routing utama:
 | Duplicate | `_DUPLICATE/` |
 | Duplicate berukuran besar | `_DUPLICATE/Large/` |
 
-Folder yang belum ada akan dibuat otomatis oleh script.
+Folder yang belum ada akan dibuat otomatis oleh script, termasuk folder log.
 
 ---
 
@@ -479,23 +482,57 @@ Registry title yang telah diproses.
 
 ---
 
-# 🔄 DRY RUN Mode
+# 🔄 DRY RUN & Log
 
-Script menyediakan mode simulasi:
+Script menyediakan dua mode operasi berdasarkan nilai:
 
 ```python
 DRY_RUN = True
 ```
 
-Dalam mode ini script dapat menampilkan hasil rename dan routing tanpa benar-benar mengubah file di disk.
+### 🐛 DRY RUN — Debug Log
 
-Untuk menjalankan perubahan sebenarnya:
+Saat `DRY_RUN = True`, script **tidak melakukan perubahan file sebenarnya**. Hasil proses dicatat ke folder:
+
+```text
+Log/Debug/
+```
+
+Contoh struktur:
+
+```text
+Log/
+└── Debug/
+    └── <timestamp>.txt
+```
+
+Mode ini cocok untuk mengecek hasil rename, routing, duplicate detection, dan masalah parsing sebelum menjalankan perubahan sebenarnya.
+
+### ✅ Stable Mode — Stable Log
+
+Saat:
 
 ```python
 DRY_RUN = False
 ```
 
-> Disarankan menjalankan `DRY_RUN = True` terlebih dahulu untuk memeriksa hasil sebelum melakukan rename/move massal.
+script menjalankan rename/move sebenarnya dan log sesi disimpan ke:
+
+```text
+Log/Stable/
+```
+
+Contoh:
+
+```text
+Log/
+└── Stable/
+    └── <timestamp>.txt
+```
+
+Setiap sesi mendapatkan nama log berdasarkan timestamp sehingga log dari eksekusi sebelumnya tidak tertimpa.
+
+Log juga mencatat ringkasan hasil sesi, termasuk jumlah rename, file yang sudah rapi, title kosong, author baru, file `Real`, `Lainnya`, duplicate, file yang tetap, English, dan Cosplay.
 
 ---
 
@@ -510,26 +547,14 @@ Script juga tidak mengubah isi video. Operasinya berfokus pada:
 - membaca filename
 - rename
 - memindahkan file
-- mencatat registry / log
-
----
-
-# 🧪 Debug / Troubleshooting
-
-Repository juga menyediakan file debug untuk membantu investigasi masalah:
-
-```text
-debug.py
-debug.ps1
-```
-
-Gunakan file tersebut ketika ingin memeriksa perilaku parsing atau masalah tertentu tanpa langsung mengubah koleksi utama.
+- mencatat registry
+- mencatat log sesi
 
 ---
 
 # 📂 Struktur Repository
 
-Struktur dasar repository saat ini mencakup:
+File utama repository:
 
 ```text
 nekopoi-renamer/
@@ -544,7 +569,15 @@ nekopoi-renamer/
 └── README.md
 ```
 
-> `cosplay.txt` dan file konfigurasi/registry dapat dibuat atau diisi sesuai kebutuhan penggunaan lokal.
+`debug.py` dan `debug.ps1` merupakan **file utama repository**, bukan folder atau file log troubleshooting.
+
+Log runtime dibuat otomatis di folder kerja saat script dijalankan:
+
+```text
+Log/
+├── Debug/     # DRY_RUN = True
+└── Stable/    # DRY_RUN = False
+```
 
 ---
 
@@ -559,7 +592,7 @@ nekopoi-renamer/
 DRY_RUN = True
 ```
 
-untuk melihat simulasi terlebih dahulu.
+untuk melihat simulasi terlebih dahulu. Hasil log akan masuk ke `Log/Debug/`.
 
 5. Jika hasil sudah sesuai, ubah menjadi:
 
@@ -567,7 +600,7 @@ untuk melihat simulasi terlebih dahulu.
 DRY_RUN = False
 ```
 
-6. Jalankan kembali script untuk melakukan rename dan move sebenarnya.
+6. Jalankan kembali script untuk melakukan rename dan move sebenarnya. Hasil log akan masuk ke `Log/Stable/`.
 
 ---
 
@@ -662,6 +695,24 @@ Jika ukurannya melewati threshold large duplicate:
 _DUPLICATE/
 └── Large/
     └── <filename>
+```
+
+---
+
+### Log
+
+Saat simulasi:
+
+```text
+DRY_RUN = True
+→ Log/Debug/<timestamp>.txt
+```
+
+Saat eksekusi sebenarnya:
+
+```text
+DRY_RUN = False
+→ Log/Stable/<timestamp>.txt
 ```
 
 ---
